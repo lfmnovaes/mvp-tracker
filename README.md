@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.0 completes the desktop shell only.** Capture, boss timers and data exchange are subsequent steps in plan.md; this build does not collect game data.
+Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.1 completes the desktop shell only.** Capture, boss timers and data exchange are subsequent steps in plan.md; this build does not collect game data.
 
 Extract the entire portable ZIP into a writable folder and open **MVP Tracker.exe**. Windows 11's WebView2 runtime and .NET Framework 4.x are required. No Node/Bun/npm installation is required to run the ZIP. This build is unsigned.
 
@@ -34,3 +34,5 @@ bun run package
 The Windows-only ZIP is in release/. It includes the Bun runtime, companion, Neutralino resources, license notices and corresponding source. It excludes local data and logs. This is a local packaging command; automated GitHub release workflows are planned for Step 9.
 
 Verification records are in docs/step-1-verification.md. Licensed under GNU AGPL v3 only; see LICENSE.txt and THIRD_PARTY_NOTICES.md.
+
+The window centers on first launch and restores its last position and size on subsequent launches (Neutralino's portable .tmp/window_state.config.json). Development uses directory resources, so it does not need a root resources.neu. Manual testing is primarily performed by the user later in development; early gates use focused unit tests and builds.

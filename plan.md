@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 10 September 2026 with the user's decisions. The original 18 questions are resolved and removed. Application implementation has not started. Convex replaces Google Sheets entirely. Shared-group-key access is approved; no product questions remain open. A concrete Convex deployment URL/key will be needed later for live testing.
+Updated 10 September 2026 with the user's decisions. The original 18 questions are resolved and removed. Steps 0 and 1 are complete; Step 2 is in progress. Convex replaces Google Sheets entirely. Shared-group-key access is approved; no product questions remain open. A concrete Convex deployment URL/key will be needed later for live testing.
 
 ## 1. Agreed scope
 
@@ -124,7 +124,7 @@ Maintain a small supplement for known map labels. Leave unknown labels empty, as
 
 ### Main window
 
-Use a resizable dark window with a distinct compact tracker layout: title bar, capture-status strip, search/filter row, table, and persistent sharing toolbar. Settings cog, minimize, and X belong at the top right. No separate launcher or overlay.
+Use a resizable dark window with a distinct compact tracker layout: title bar, capture-status strip, search/filter row, table, and persistent sharing toolbar. Settings cog, minimize, and X belong at the top right. No separate launcher or overlay. No encounter/Boss timers subheader or SA+NA timezone badge beneath the capture strip. On first launch, center the window; on later launches, restore the previous window position and size, recovering inaccessible bounds after monitor changes.
 
 Capture status shows starting, waiting for game, game detected/waiting for usable packets, Capture Active, stalled, missing/unavailable Npcap, adapter failure, and backend reconnecting. Preserve useful upstream explanations. Capture, storage, and Convex sync status are independent; a successful sync never implies game capture is active. Normal game absence is informational rather than a repeated error log.
 
@@ -348,6 +348,8 @@ Provide Open logs and Export sanitized diagnostics with versions, adapter/health
 
 ## 9. Implementation steps and acceptance gates
 
+Testing policy (user decision, 2026-09-10): prefer only unit tests that protect important domain or persistence behavior. Manual testing belongs primarily to the user, later in implementation; perform desktop interaction only when absolutely necessary. Deferred manual checks do not block these early steps and must never be reported as passed. App versions follow `0.1.<step>` during this phase (Step 1: 0.1.1; Step 2: 0.1.2).
+
 After every completed step: run its relevant checks, update progress in this file, commit with a short message describing the change, and push to the configured repository. Inspect user changes first, stage only that step's files, and never force-push. If a push fails, retain the local commit and report the exact blocker; do not call it pushed. Use `main` for this initial agreed work unless isolation becomes necessary; any newly needed branch uses `codex/`.
 
 ### Step 0 — Record decisions and prepare the repository
@@ -366,9 +368,9 @@ Gate: an agreed specification and the plan in the intended repository. A concret
 - [x] Implement single instance, tray lifecycle, Settings shell, close-to-tray, taskbar minimize, optional start minimized, and F7/F8/F9 configuration.
 - [x] Add typed UI/backend/clipboard boundaries, portable storage roots, errors, and essential log rotation.
 
-Gate: development/package smoke opens, hides/restores, keeps backend alive, and exits without orphan processes; no unrelated overlay UI/services. Commit/push.
+Gate: implementation, type checks, focused unit tests and Windows build/package checks pass. Remaining manual desktop tests belong to the user later in development.
 
-**2026-09-10 status:** Implementation is present; development UI, portable settings, F7/F8/F9 and clean Exit were exercised. Automated checks and local Windows packaging are recorded in `docs/step-1-verification.md`. The final native verification gate remains pending because the user stopped Computer Use with Escape before the extracted-package, tray-menu and remaining lifecycle tests. Do not mark the overall step complete until those checks pass.
+**2026-09-10 status: Complete (0.1.1).** Existing desktop checks are documented in `docs/step-1-verification.md`; remaining manual checks were deferred by the user. Removed the redundant encounter/Boss timers subheader and region badge; retained the titlebar, icon and capture strip. First launch centers the window, while Neutralino remembers its previous position and size. Development uses directory resources explicitly to avoid the missing `resources.neu` warning.
 
 ### Step 2 — Catalog, timer core, and persistence
 

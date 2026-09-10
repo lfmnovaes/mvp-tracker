@@ -44,3 +44,6 @@ The user stopped Computer Use with the physical Escape key during the remaining 
 - Exercise Explorer restart, sleep/resume and monitor removal on a suitable test desktop. These must not be performed disruptively on the user's active session without arranging the test.
 
 Do not label these unperformed checks as passed. Live game capture and Convex tests remain in their own later steps.
+
+## Updated acceptance policy — 2026-09-10
+The user explicitly deferred remaining manual checks to later implementation and will primarily perform them personally. Step 1 is accepted as complete on implementation, focused automated checks and build evidence; the unperformed manual checks above remain a future checklist, not an early-step blocker. Version 0.1.1 removes the redundant subheader, explicitly centers first launch/restores saved bounds, and uses Neutralino's directory-resource flag for development. No additional desktop automation was performed for these changes.

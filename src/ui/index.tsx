@@ -55,7 +55,6 @@ function App() {
     </header>
     <section class="health" aria-label="Capture status"><span class="status-dot"/><strong>Capture inactive</strong><span class="divider"/><span>Game detection unavailable</span><span class="health-right">{snapshot ? "Shell ready" : "Starting…"}</span></section>
     <div class="workspace">
-      <section class="intro"><div><div class="eyebrow">YOUR NEXT ENCOUNTER</div><h1>Boss timers</h1><p>A shared view of what’s next in Spirit Vale.</p></div><div class="region-pill">SA + NA <span>·</span> UTC−3</div></section>
       {(error || snapshot?.warning) && <div class="notice warning" role="alert">{error || snapshot?.warning}{error && <button onClick={() => void shell("exit")}>Exit app</button>}</div>}
       <section class="tracker-card" aria-label="Boss timers">
         <div class="table-toolbar"><div class="search-wrap"><span>⌕</span><input aria-label="Search bosses" placeholder="Search boss, map, region or channel" disabled/></div><span class="count">0 tracked</span><button class="primary" onClick={() => action("add")}>＋ Add manually</button></div>

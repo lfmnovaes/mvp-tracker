@@ -1,6 +1,6 @@
 {
   "applicationId": "dev.lfmnovaes.mvptracker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "applicationName": "MVP Tracker",
   "applicationIcon": "resources/icon.png",
   "author": "Luis Fernando",
@@ -18,6 +18,7 @@
   "modes": { "window": {
     "title": "MVP Tracker", "width": 1080, "height": 700, "minWidth": 820, "minHeight": 560,
     "borderless": true, "resizable": true, "exitProcessOnClose": false,
+    "center": true, "useSavedState": true,
     "injectGlobals": true, "injectClientLibrary": false, "useLogicalPixels": true,
     "icon": "/resources/icon.png"
   } },
