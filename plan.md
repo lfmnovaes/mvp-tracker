@@ -20,7 +20,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 | Respawn | User-confirmed game rule: grave present means boss has not respawned; respawn occurs 60–90 minutes after death, for all supported bosses. |
 | Expiry | At +90 minutes mark Spawned. Keep the kill information until +150 minutes, then discard its values and retain the boss slot labeled Outdated. |
 | Edits | Add and Edit set kill date/time; confirmation automatically stamps the information time from the Windows clock. Manual and automatic evidence may replace one another. |
-| Sharing | Configurable Convex cloud development URL plus shared group key, empty initially. Transactional manual sync and optional timed auto-sync: 30 seconds, 1, 2, 5, or 10 minutes. |
+| Sharing | Configurable Convex cloud development URL plus shared group key, empty initially. Transactional manual sync and optional timed auto-sync: 10, 20, or 30 seconds; 1, 2, or 5 minutes. |
 | Reset | Confirmed Convex reset mutation clears tracker observations and advances dataset generation, retaining schema/catalog labels. Owner deploys functions separately with `npx convex dev --once`; this command does not erase records. |
 | Text export | Selected Dark Fortress bosses only; kill time `HH:mm`; no `?` or other uncertainty markers; headers such as `SA UTC-3`. |
 | JSON/compressed export | All selected supported bosses/regions, regardless of temporary search; include killer, observer/sender attribution, and merge metadata. |
@@ -28,7 +28,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 | Window | X/native Close/Alt+F4 hides to tray; minimize goes to taskbar. Optional start minimized means hidden to tray. No launch-with-Windows setting. |
 | Hotkeys | Optional/rebindable F7 Show/hide Tracker, F8 Add manually, F9 Sync, available in version 1. |
 | Distribution | Fully portable, unsigned Windows 11 x64 ZIP; Neutralino/WebView2 + Bun. No installer, ARM64, Windows 10 commitment, or Electron fallback in version 1. |
-| Repository | `C:\Users\lfmno\Projects\mvp-tracker`, remote `git@github.com:lfmnovaes/mvp-tracker.git`. Commit and push after every completed step using a short progress message. |
+| Repository | `C:\Users\lfmno\Projects\mvp-tracker`, remote `https://github.com/lfmnovaes/mvp-tracker.git`, authenticated as `lfmnovaes` through Git Credential Manager. Commit and push after every completed step using a short progress message. |
 | Source reuse | Preserve upstream attribution and AGPL notices; publish corresponding source/build instructions for the derivative. |
 
 ### Convex decisions and setup boundaries
@@ -264,7 +264,7 @@ Repeated observation IDs must be idempotent. For uncertain network failures, ret
 
 ### Automatic and manual sync UX
 
-Default auto-sync is **Stopped**, with **1 minute** selected. Offer exactly five intervals: **30 seconds, 1 minute, 2 minutes, 5 minutes, 10 minutes**. Store the chosen interval; restart the application stopped so network activity resumes only after Start. Starting minimized affects the window, not this preference.
+Default auto-sync is **Stopped**, with **1 minute** selected. Offer exactly six intervals: **10 seconds, 20 seconds, 30 seconds, 1 minute, 2 minutes, 5 minutes**. The 10-minute option is removed. Store the chosen interval; restart the application stopped so network activity resumes only after Start. Starting minimized affects the window, not this preference.
 
 Toolbar example: `Sync now   Auto: [1 minute v] [Start]` plus `Stopped · Last sync 21:04:12 · Sharing as LuisCharacter`. Running changes Start to Stop and shows `Next sync in 00:42`. A compact spinner/status occupies the same space while a request is active. Start performs an immediate sync, then schedules the next interval after completion. Auto-sync continues in the tray while started.
 
@@ -286,7 +286,7 @@ Client display always evaluates +150-minute expiry. Server clears expired observ
 
 Convex currently advertises a Free plan and a separate Starter pay-as-you-go option. The pricing page lists included resource allowances such as 1 million function calls, 0.5 GB database storage, and 1 GB each of database I/O and egress for the entry tier. Verify the actual selected free account limits in the dashboard at setup and remain on Free; do not enable billing automatically. Small storage does not guarantee low traffic. [Current pricing](https://www.convex.dev/pricing).
 
-At one call per interval, uninterrupted polling for 30 days costs approximately 86,400 calls/client at 30 seconds, 43,200 at 1 minute, 21,600 at 2 minutes, 8,640 at 5 minutes, and 4,320 at 10 minutes, before tests/retries/cleanup. Ten always-running clients at 30 seconds approach 864,000 calls. A repeated 20 KB full snapshot at one minute is roughly 864 MB/client/month before overhead; use revision/delta responses instead.
+At one call per interval, uninterrupted polling for 30 days costs approximately 259,200 calls/client at 10 seconds, 129,600 at 20 seconds, 86,400 at 30 seconds, 43,200 at 1 minute, 21,600 at 2 minutes, and 8,640 at 5 minutes, before tests/retries/cleanup. Four always-running clients at 10 seconds reach 1,036,800 calls, above the currently listed 1-million entry-tier allowance. The faster options remain available as requested; keep the 1-minute default and show a concise estimated-usage hint in Settings. A repeated 20 KB full snapshot at one minute is roughly 864 MB/client/month before overhead; use revision/delta responses instead.
 
 No-change sync should read small metadata and return unchanged without scanning 594 documents or updating a “last sync” timestamp. Store next expiry in metadata; query changed-revision/expiry indexes only when needed. Send only pending observations; preserve their acknowledged IDs locally. Initial/new-selection/recovery fetches can request snapshots; normal polls should be cheap. Monitor calls, database I/O, egress, and retries with measured payloads during the private beta. A single mutation per ordinary tick avoids a mandatory query-then-mutation round trip.
 
@@ -411,7 +411,7 @@ Gate: missing/wrong keys fail closed; valid candidates merge without clobbering 
 
 ### Step 7 — Manual/automatic sync, reset, and expiry
 
-- [ ] Implement one shared manual/automatic sync coordinator, five intervals, Start/Stop, next-sync display, coalescing, live interval changes, backoff, sleep/reconnect, and safe shutdown.
+- [ ] Implement one shared manual/automatic sync coordinator, six intervals (10s/20s/30s/1m/2m/5m), Start/Stop, next-sync display, coalescing, live interval changes, backoff, sleep/reconnect, and safe shutdown.
 - [ ] Implement atomic delta application/acknowledgements, capture/edit-during-sync handling, no-op polling optimization, and bounded reset receipts.
 - [ ] Add confirmed reset mutation and next-expiry scheduled cleanup; generation checks protect new data against old requests/jobs.
 - [ ] Verify sender snapshots, no fabricated identity, wrong-key pause, and reset leaving auto-sync stopped.
@@ -455,7 +455,7 @@ Use Bun tests for the core/desktop and synthetic capture fixtures, plus convex-t
 | Convex connection | Empty/invalid URL/key, wrong origin, missing functions/init, schema version, group-key checks in every public endpoint, key rotation, URL/key change during request, no credentials in exports/logs. |
 | Attribution | Live local character vs inspected player; cached/manual fallback; no name holds uploads; switch during request; killer vs observer vs sender; imported provenance retained; duplicates do not churn submitter metadata. |
 | Convex mutations | Indexed upserts preserve one slot; validation before commit, selected-only uploads preserve other slots, monotonic revisions, unchanged response without writes/full scan, full snapshot/delta recovery, physical expiry clearing. |
-| Scheduler | All five intervals; default stopped; Start immediate sync; manual F9 during auto/active requests; at most one follow-up; live interval change while waiting/syncing/backoff; Stop prevents future retry; tray continuation; no restart/sleep backlog. |
+| Scheduler | All six intervals (10s/20s/30s/1m/2m/5m); no 10m option; default stopped; Start immediate sync; manual F9 during auto/active requests; at most one follow-up; live interval change while waiting/syncing/backoff; Stop prevents future retry; tray continuation; no restart/sleep backlog. |
 | Concurrency | Two/many writers same/different slots, transactional latest-evidence merge, response loss/idempotent retry, local observations arriving mid-sync, watermark atomicity, key errors/quota/offline backoff. |
 | Reset/cleanup | Confirmation, generation advance, simultaneous old sync rejected or cleared before reset, duplicate Reset cannot erase post-reset data, old JSON cutoff, delayed cleanup cannot clear newer cycle, unrelated tables untouched. |
 | Logs | Meaningful failures/versions retained, warning throttling, byte/age caps, no raw packets/tokens/killer names/private URLs, disk failures do not stop capture. |
