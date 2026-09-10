@@ -34,7 +34,7 @@ The Windows host filters out untitled WebView2 helper windows and avoids moving 
 
 ## Outstanding native verification
 
-The user stopped Computer Use with the physical Escape key during the remaining tests. No further desktop input was issued. **The final Step 1 native verification gate is still pending**, even though the implementation and local packaging are present.
+The user stopped Computer Use with the physical Escape key during the remaining tests. No further desktop input was issued. **These remaining manual checks are deferred to the user at a later implementation stage**, per the subsequently updated acceptance policy below. They no longer block Step 1.
 
 - Extract the final ZIP into a fresh writable folder (including a path with spaces) and launch `MVP Tracker.exe`; repeat hide, restore, Settings, and Exit.
 - Verify minimize goes to the taskbar, Alt+F4 hides to tray, and F7 restores while a different app is focused.

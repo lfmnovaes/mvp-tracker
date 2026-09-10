@@ -21,3 +21,5 @@ No combat, rewards, overlay, launcher or game assets will be copied. The capture
 The upstream desktop shell already uses Neutralino 6.9.0, neu 11.7.2, Bun and Preact. Its existing extension handshake is the compatibility reference. Runtime package smoke testing belongs to Step 1; packet behavior belongs to Step 3.
 
 Sources: [overlay source](https://github.com/kar-mi/spirit-vale-overlay/tree/4f1f8000bbdb19f7234aa9e73ddb89106fe3d389), [overlay license](https://github.com/kar-mi/spirit-vale-overlay/blob/4f1f8000bbdb19f7234aa9e73ddb89106fe3d389/LICENSE.txt), [tools source](https://github.com/kar-mi/spirit-vale-tools/tree/87db1d724d5738ec8b5f3cb258e357e757813264), [npm registry](https://registry.npmjs.org/), [Neutralino window API](https://neutralino.js.org/docs/api/window/), [Neutralino extensions](https://neutralino.js.org/docs/how-to/extensions-overview/).
+
+Step 2 (0.1.2): extracted the 33 supported boss ID/name/level records from the pinned spirit-vale-tools catalog into src/domain/catalog.ts and verified the complete set against that source. Dark Fortress is the only confirmed boss-to-map supplement. This adds no runtime dependency on the rewards package.

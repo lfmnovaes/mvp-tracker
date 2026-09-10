@@ -2,6 +2,7 @@ import { resolve, join } from "node:path";
 import { NeutralinoClient } from "./neutralino-client";
 import { SettingsStore } from "./storage";
 import { Logger } from "./logger";
+import { TimerStore } from "./timer-store";
 import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, type Snapshot, type Update, type Action } from "../shared/protocol";
 
 const root = resolve(import.meta.dir, "../..");
@@ -12,6 +13,8 @@ let uiReady = false;
 let companion: ReturnType<typeof Bun.spawn> | undefined;
 let store: SettingsStore;
 let logger: Logger;
+let timers: TimerStore;
+let cleanupTimer: ReturnType<typeof setInterval> | undefined;
 let state!: Snapshot;
 function send(command: string, extras: Record<string, unknown> = {}) {
   if (!companion || !companion.stdin || typeof companion.stdin === "number") throw new Error("Windows companion unavailable.");
@@ -38,6 +41,7 @@ async function shellAction(action: string) {
 }
 async function exitApp() {
   if (exiting) return; exiting = true;
+  clearInterval(cleanupTimer); timers?.close();
   logger?.write("stopped");
   try { send("exit"); } catch { }
   if (companion) {
@@ -48,6 +52,7 @@ async function exitApp() {
 }
 native.onClose(() => {
   exiting = true;
+  clearInterval(cleanupTimer); timers?.close();
   try { send("exit"); } catch { }
   void Promise.race([companion?.exited ?? Promise.resolve(), Bun.sleep(1500)]).then(() => {
     if (companion?.exitCode === null) companion.kill();
@@ -79,10 +84,13 @@ native.on(REQUEST, raw => {
             // Let WebView2 finish its first layout before hiding; hiding during creation can leave it unpainted.
             if (state.settings.startMinimized && state.trayReady) setTimeout(() => { if (!exiting) void shellAction("hide"); }, 500);
           }
+          state.timers = timers.selectedSnapshot();
+          state.warning = timers.warning ?? store.warning ?? state.warning;
           result = state; break;
         case "saveSettings":
           store.save(request.input); state.settings = request.input;
-          state.warning = store.warning; logger.write("settings-saved");
+          timers.setSelection(request.input.tracking); state.timers = timers.selectedSnapshot();
+          state.warning = timers.warning ?? store.warning; logger.write("settings-saved");
           send("configure", { hotkeys: state.settings.hotkeys }); result = state; break;
         case "shell":
           if (request.input === "exit") { void exitApp(); return; }
@@ -113,14 +121,34 @@ async function initialize(trayReady: boolean) {
   store = new SettingsStore(root);
   logger = new Logger(join(root, "logs"));
   const settings = store.load();
+  timers = new TimerStore(root, settings.tracking);
   state = { version: VERSION, settings, storageWritable: store.writable,
-    warning: store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {} };
+    warning: timers.warning ?? store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {}, timers: timers.selectedSnapshot() };
   if (!trayReady) state.warning = "Tray is unavailable. Keep the window open; Exit is available in Settings.";
   logger.write("started"); if (!store.writable) logger.write("storage-unavailable");
   ready = true;
   if (companion?.exitCode === null) send("configure", { hotkeys: settings.hotkeys });
   await shellAction("show");
   await publish({ type: "snapshot", value: state });
+  let cleanupTicks = 0;
+  let timerWarning = timers.warning;
+  if (timerWarning) logger.write("timer-storage-unavailable");
+  cleanupTimer = setInterval(() => {
+    if (exiting) return;
+    const changed = timers.expire();
+    if (++cleanupTicks % 30 === 0) timers.flush();
+    const warningChanged = timerWarning !== timers.warning;
+    if (warningChanged) {
+      logger.write(timers.warning ? "timer-storage-unavailable" : "timer-storage-restored");
+      if (timers.warning || state.warning === timerWarning) state.warning = timers.warning ?? store.warning;
+      timerWarning = timers.warning;
+    }
+    if (changed || warningChanged) {
+      state.timers = timers.selectedSnapshot();
+      if (timers.warning) state.warning = timers.warning;
+      void publish({ type: "snapshot", value: state }).catch(() => {});
+    }
+  }, 1000);
 }
 try {
   companion = Bun.spawn([join(root, "extensions", "bin", "mvp-shell.exe"), String(process.pid), join(root, "extensions", "bin", "icon.ico")], {

@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 10 September 2026 with the user's decisions. The original 18 questions are resolved and removed. Steps 0 and 1 are complete; Step 2 is in progress. Convex replaces Google Sheets entirely. Shared-group-key access is approved; no product questions remain open. A concrete Convex deployment URL/key will be needed later for live testing.
+Updated 10 September 2026 with the user's decisions. The original 18 questions are resolved and removed. Steps 0–2 are complete (current app version 0.1.2). Convex replaces Google Sheets entirely. Shared-group-key access is approved; no product questions remain open. A concrete Convex deployment URL/key will be needed later for live testing.
 
 ## 1. Agreed scope
 
@@ -206,7 +206,7 @@ Use one validated pure merge path for capture, manual entry/edit, clipboard impo
 4. Within an unchanged death report, a genuine later grave check advances gathered time while preserving kill time. Preserve each observation as a coherent record; never combine one death's killer with another death's kill time.
 5. Equal IDs are no-ops; equal timestamps use a stable observation-ID tie-breaker so all clients converge for the same inputs. Equal-time conflicts can be counted/explained without inventing freshness.
 6. Expired input never recreates an active timer and must not clear a different valid observation merely because it arrived later. A direct user Edit to an expired kill explicitly clears the local slot; its final expiry decision is distinguishable from an unrelated stale import.
-7. Do not accept implausibly future gathered times as permanently winning evidence. Preserve raw upstream time for diagnosis and surface clock trouble rather than silently rewriting it. Define/test a small explicit skew tolerance during core implementation.
+7. Do not accept implausibly future gathered times as permanently winning evidence. Preserve raw upstream time for diagnosis and surface clock trouble rather than silently rewriting it. Core implementation accepts up to 30 seconds of future timestamp skew for incoming records; manual kill input allows no future time. This tolerance never extends the spawn or expiry boundaries.
 8. Deselected remote slots remain untouched in the database even though hidden/not ingested as tracked local data; sync omission is not a delete. Local removal/hiding is not a shared delete operation. Per-row shared deletion is outside version 1; shared clearing occurs through expiry or Reset.
 9. Every Convex sync validates expected dataset generation in its transaction. A reset advances that generation; a concurrent old-generation sync either commits before reset and is cleared, or rejects afterward. Expiry and original-evidence/reset-cutoff checks also prevent old clipboard data from silently repopulating the reset dataset.
 
@@ -374,11 +374,13 @@ Gate: implementation, type checks, focused unit tests and Windows build/package 
 
 ### Step 2 — Catalog, timer core, and persistence
 
-- [ ] Add all 33 bosses, exact Endgame allowlist, Robot Dragon exclusion, known map supplement, region preferences.
-- [ ] Implement UTC storage/fixed São Paulo formatting, +60/+90/+150 lifecycle, cleared Outdated slots, validation, and atomic persistence/recovery.
-- [ ] Implement gathered-time merges, edits that can correct either direction, deduplication, expiry, search/sort helpers, and meaningful tests.
+- [x] Add all 33 bosses, exact Endgame allowlist, Robot Dragon exclusion, known map supplement, region preferences.
+- [x] Implement UTC storage/fixed São Paulo formatting, +60/+90/+150 lifecycle, cleared Outdated slots, validation, and atomic persistence/recovery.
+- [x] Implement gathered-time merges, edits that can correct either direction, deduplication, expiry, search/sort helpers, and meaningful tests.
 
-Gate: boundaries, fresh-versus-old evidence, manual/automatic replacement, disabled choices, and restart cleanup pass. Commit/push.
+Gate: boundaries, fresh-versus-old evidence, manual/automatic replacement, disabled choices, and restart cleanup pass through focused unit tests; TypeScript and Windows build checks pass. Commit/push.
+
+**2026-09-10 status: Complete (0.1.2).** Implemented the minimal catalog, selectable boss/region preferences, timer domain and portable timer persistence, settings migration, shared freshness/expiry rules, and table search/sort consumers. Timestamp skew tolerance is explicitly 30 seconds for incoming records; manual future kills are rejected. See `docs/step-2-verification.md`. No new manual desktop testing was required. Actual capture remains in Step 3; the full Add/Edit dialog and row actions remain in Step 4.
 
 ### Step 3 — Passive capture and health
 

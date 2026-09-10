@@ -1,4 +1,7 @@
-export const VERSION = "0.1.1";
+import { defaultSelection, parseSelection, type Selection } from "../domain/catalog";
+import { defaultSort, parseSort, type Sort } from "../domain/query";
+import type { TimerSlot } from "../domain/timers";
+export const VERSION = "0.1.2";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";
@@ -6,13 +9,15 @@ export const UPDATE = "mvp:update";
 export const ACTIONS = ["toggle", "add", "sync"] as const;
 export type Action = typeof ACTIONS[number];
 export interface Settings {
-  schemaVersion: 1;
+  schemaVersion: 2;
   startMinimized: boolean;
   clock24: boolean;
   hotkeys: Record<Action, string>;
+  tracking: Selection;
+  sort: Sort;
 }
-export const defaults = (): Settings => ({ schemaVersion: 1, startMinimized: false, clock24: false,
-  hotkeys: { toggle: "F7", add: "F8", sync: "F9" } });
+export const defaults = (): Settings => ({ schemaVersion: 2, startMinimized: false, clock24: false,
+  hotkeys: { toggle: "F7", add: "F8", sync: "F9" }, tracking: defaultSelection(), sort: defaultSort() });
 
 // Restrict v1 bindings to a deliberate, predictable set; empty means disabled.
 export function validShortcut(value: unknown): value is string {
@@ -21,13 +26,15 @@ export function validShortcut(value: unknown): value is string {
 }
 export function parseSettings(value: unknown): Settings {
   if (!value || typeof value !== "object") throw new Error("Invalid settings.");
-  const s = value as Settings;
-  if (s.schemaVersion !== 1 || typeof s.startMinimized !== "boolean" || typeof s.clock24 !== "boolean" || !s.hotkeys) throw new Error("Invalid settings.");
+  const s = value as Omit<Settings, "schemaVersion"> & { schemaVersion: number };
+  if (![1, 2].includes(s.schemaVersion) || typeof s.startMinimized !== "boolean" || typeof s.clock24 !== "boolean" || !s.hotkeys) throw new Error("Invalid settings.");
   if (!ACTIONS.every(a => validShortcut(s.hotkeys[a]))) throw new Error("Use F1–F24 (except reserved F12), or Ctrl/Alt/Shift plus a letter or digit.");
   const enabled = ACTIONS.map(a => s.hotkeys[a]).filter(Boolean);
   if (new Set(enabled).size !== enabled.length) throw new Error("Each enabled shortcut must be unique.");
-  return { schemaVersion: 1, startMinimized: s.startMinimized, clock24: s.clock24,
-    hotkeys: { toggle: s.hotkeys.toggle, add: s.hotkeys.add, sync: s.hotkeys.sync } };
+  return { schemaVersion: 2, startMinimized: s.startMinimized, clock24: s.clock24,
+    hotkeys: { toggle: s.hotkeys.toggle, add: s.hotkeys.add, sync: s.hotkeys.sync },
+    tracking: s.schemaVersion === 1 ? defaultSelection() : parseSelection(s.tracking),
+    sort: s.schemaVersion === 1 ? defaultSort() : parseSort(s.sort) };
 }
 export interface Snapshot {
   version: string;
@@ -36,6 +43,7 @@ export interface Snapshot {
   warning: string | null;
   trayReady: boolean;
   hotkeyErrors: Partial<Record<Action, string>>;
+  timers: TimerSlot[];
 }
 export interface Operations {
   hotkeyCapture: { input: boolean; output: null };

@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-export type LogEvent = "started" | "stopped" | "storage-unavailable" | "settings-saved" | "native-unavailable" | "native-exited" | "rpc-failed" | "frontend-timeout" | "fatal";
+export type LogEvent = "started" | "stopped" | "storage-unavailable" | "settings-saved" | "native-unavailable" | "native-exited" | "rpc-failed" | "frontend-timeout" | "timer-storage-unavailable" | "timer-storage-restored" | "fatal";
 // An allowlist, rather than regex redaction, prevents accidental sensitive payload logging.
 export class Logger {
   available = true;
