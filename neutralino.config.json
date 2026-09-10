@@ -1,6 +1,6 @@
 {
   "applicationId": "dev.lfmnovaes.mvptracker",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "applicationName": "MVP Tracker",
   "applicationIcon": "resources/icon.png",
   "author": "Luis Fernando",

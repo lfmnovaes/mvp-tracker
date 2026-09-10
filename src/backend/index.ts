@@ -3,6 +3,9 @@ import { NeutralinoClient } from "./neutralino-client";
 import { SettingsStore } from "./storage";
 import { Logger } from "./logger";
 import { TimerStore } from "./timer-store";
+import { CaptureService } from "./capture-service";
+import { emptyCapture } from "../shared/capture";
+import { compareEvidence, parseObservation, slotKey, type Observation } from "../domain/timers";
 import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, type Snapshot, type Update, type Action } from "../shared/protocol";
 
 const root = resolve(import.meta.dir, "../..");
@@ -14,6 +17,19 @@ let companion: ReturnType<typeof Bun.spawn> | undefined;
 let store: SettingsStore;
 let logger: Logger;
 let timers: TimerStore;
+let capture: CaptureService | undefined;
+const pendingObservations = new Map<string, Observation>();
+function flushObservations() {
+  if (!pendingObservations.size) return false;
+  const entries = [...pendingObservations.values()]; pendingObservations.clear();
+  // A system-clock correction between receipt and flush must not terminate the app.
+  const now = Date.now();
+  const valid = entries.filter(entry => {
+    try { parseObservation(entry, now); return true; }
+    catch { logger?.write("capture-packet-rejected"); return false; }
+  });
+  return valid.length ? timers.ingest(valid) : false;
+}
 let cleanupTimer: ReturnType<typeof setInterval> | undefined;
 let state!: Snapshot;
 function send(command: string, extras: Record<string, unknown> = {}) {
@@ -41,7 +57,7 @@ async function shellAction(action: string) {
 }
 async function exitApp() {
   if (exiting) return; exiting = true;
-  clearInterval(cleanupTimer); timers?.close();
+  clearInterval(cleanupTimer); await capture?.stop(); flushObservations(); timers?.close();
   logger?.write("stopped");
   try { send("exit"); } catch { }
   if (companion) {
@@ -52,7 +68,7 @@ async function exitApp() {
 }
 native.onClose(() => {
   exiting = true;
-  clearInterval(cleanupTimer); timers?.close();
+  clearInterval(cleanupTimer); void capture?.stop(); flushObservations(); timers?.close();
   try { send("exit"); } catch { }
   void Promise.race([companion?.exited ?? Promise.resolve(), Bun.sleep(1500)]).then(() => {
     if (companion?.exitCode === null) companion.kill();
@@ -77,6 +93,7 @@ native.on(REQUEST, raw => {
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
       let result: unknown = null;
       switch (request.method) {
+        case "captureRestart": void capture?.restart(); break;
         case "hotkeyCapture": send("capture", { active: request.input }); break;
         case "snapshot":
           if (!uiReady) {
@@ -85,11 +102,13 @@ native.on(REQUEST, raw => {
             if (state.settings.startMinimized && state.trayReady) setTimeout(() => { if (!exiting) void shellAction("hide"); }, 500);
           }
           state.timers = timers.selectedSnapshot();
+          state.capture = capture?.snapshot() ?? emptyCapture();
           state.warning = timers.warning ?? store.warning ?? state.warning;
           result = state; break;
         case "saveSettings":
           store.save(request.input); state.settings = request.input;
           timers.setSelection(request.input.tracking); state.timers = timers.selectedSnapshot();
+          capture?.configure(request.input.capture); state.capture = capture?.snapshot() ?? emptyCapture();
           state.warning = timers.warning ?? store.warning; logger.write("settings-saved");
           send("configure", { hotkeys: state.settings.hotkeys }); result = state; break;
         case "shell":
@@ -123,7 +142,12 @@ async function initialize(trayReady: boolean) {
   const settings = store.load();
   timers = new TimerStore(root, settings.tracking);
   state = { version: VERSION, settings, storageWritable: store.writable,
-    warning: timers.warning ?? store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {}, timers: timers.selectedSnapshot() };
+    warning: timers.warning ?? store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {}, timers: timers.selectedSnapshot(), capture: emptyCapture() };
+  capture = new CaptureService(settings.capture, observation => {
+    const key = slotKey(observation), pending = pendingObservations.get(key);
+    if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);
+  }, undefined, Date.now, event => logger.write(event));
+  void capture.restart();
   if (!trayReady) state.warning = "Tray is unavailable. Keep the window open; Exit is available in Settings.";
   logger.write("started"); if (!store.writable) logger.write("storage-unavailable");
   ready = true;
@@ -135,7 +159,12 @@ async function initialize(trayReady: boolean) {
   if (timerWarning) logger.write("timer-storage-unavailable");
   cleanupTimer = setInterval(() => {
     if (exiting) return;
-    const changed = timers.expire();
+    capture?.tick();
+    const observationsChanged = flushObservations();
+    const changed = timers.expire() || observationsChanged;
+    const captureState = capture?.snapshot() ?? emptyCapture();
+    const captureChanged = JSON.stringify(captureState) !== JSON.stringify(state.capture);
+    state.capture = captureState;
     if (++cleanupTicks % 30 === 0) timers.flush();
     const warningChanged = timerWarning !== timers.warning;
     if (warningChanged) {
@@ -143,7 +172,7 @@ async function initialize(trayReady: boolean) {
       if (timers.warning || state.warning === timerWarning) state.warning = timers.warning ?? store.warning;
       timerWarning = timers.warning;
     }
-    if (changed || warningChanged) {
+    if (changed || warningChanged || captureChanged) {
       state.timers = timers.selectedSnapshot();
       if (timers.warning) state.warning = timers.warning;
       void publish({ type: "snapshot", value: state }).catch(() => {});

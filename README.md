@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.2 includes the desktop shell, boss catalog, timer core and persistence.** Capture, the full manual-entry/edit dialog and data exchange are subsequent steps in plan.md; this build does not collect game data yet.
+Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.3 adds passive gravestone capture, game detection, character identity and capture health.** The full manual-entry/edit dialog and data exchange remain subsequent steps in plan.md.
 
 Extract the entire portable ZIP into a writable folder and open **MVP Tracker.exe**. Windows 11's WebView2 runtime and .NET Framework 4.x are required. No Node/Bun/npm installation is required to run the ZIP. This build is unsigned.
 
@@ -10,6 +10,9 @@ Extract the entire portable ZIP into a writable folder and open **MVP Tracker.ex
 - Start hidden in tray is optional and off by default. Only one instance per Windows user/session runs, including across portable copies.
 - Preferences are stored atomically in data/settings.json beside the executable. A read-only folder produces a visible warning. No AppData fallback.
 - Tracking Settings selects 33 supported bosses and six regions, with seven Dark Fortress Masters and SA/NA selected by default. Timer data lives in data/timers.json; expired observations are discarded after 150 minutes, keeping an Outdated slot. Existing observations survive deselection until expiry.
+- Capture requires a separate [Npcap installation](https://npcap.com/#download) with **WinPcap API-compatible mode** enabled. Npcap is not bundled. The app follows SpiritVale.exe and passively reads its UDP traffic; it does not inject or modify game traffic.
+- Walk near a gravestone to collect a timer. Capture continues in the tray. Settings → Capture & diagnostics shows game/adapter health, latest decoded packet time and Retry capture. Automatic adapter selection is the default; choose another adapter and save if needed. Capture retries failures and recovers after sleep. If context is unknown, change maps/channels and revisit the grave; the app does not guess a region or channel.
+- The local character is detected from the game's outbound object and identity updates. A last-seen name is marked cached for this session; it is not treated as live. An optional manual character name prepares the fallback for future sharing. A grave's killer and original observer remain separate. Unknown, malformed and contradictory grave data is skipped.
 - Logs beside the executable contain only allowlisted lifecycle/error events, at most five 2 MiB files, retained for seven days. No game packets, keys, clipboard contents, character names or paths are logged.
 - If the native companion fails, the window is restored and offers Exit. If the backend or owning window dies, the companion stops its process family. Restart restores normal operation.
 
@@ -34,6 +37,6 @@ bun run package
 
 The Windows-only ZIP is in release/. It includes the Bun runtime, companion, Neutralino resources, license notices and corresponding source. It excludes local data and logs. This is a local packaging command; automated GitHub release workflows are planned for Step 9.
 
-Verification records are in docs/step-1-verification.md and docs/step-2-verification.md. Licensed under GNU AGPL v3 only; see LICENSE.txt and THIRD_PARTY_NOTICES.md.
+Verification records are in docs/step-1-verification.md, docs/step-2-verification.md and docs/step-3-verification.md. Live packet cadence, revisits, region switching and Npcap compatibility remain pending user testing. Licensed under GNU AGPL v3 only; see LICENSE.txt and THIRD_PARTY_NOTICES.md.
 
 The window centers on first launch and restores its last position and size on subsequent launches (Neutralino's portable .tmp/window_state.config.json). Development uses directory resources, so it does not need a root resources.neu. Manual testing is primarily performed by the user later in development; early gates use focused unit tests and builds.

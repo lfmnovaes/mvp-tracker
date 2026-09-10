@@ -384,12 +384,14 @@ Gate: boundaries, fresh-versus-old evidence, manual/automatic replacement, disab
 
 ### Step 3 — Passive capture and health
 
-- [ ] Integrate current tools capture APIs; extract process/adapter/health/context handling from upstream without combat/reward collectors.
-- [ ] Handle existing grave spawn snapshots, fresh-kill SyncType, retransmits, revisits, context resets, unknown slots, and gathered-time stamps.
-- [ ] Extract current local character identity using the upstream character tracker; distinguish live/cached/manual fallback identity, inspected players, killer, observer, and upload sender.
-- [ ] Maintain capture when hidden and recover on game restart/sleep; provide Npcap/adapter failures clearly.
+- [x] Integrate current tools capture APIs; extract process/adapter/health/context handling from upstream without combat/reward collectors.
+- [x] Handle existing grave spawn snapshots, fresh-kill SyncType, retransmits, revisits, context resets, unknown slots, and gathered-time stamps.
+- [x] Extract current local character identity using the upstream character tracker; distinguish live/cached/manual fallback identity, inspected players, killer, observer, and upload sender.
+- [x] Maintain capture when hidden and recover on game restart/sleep; provide Npcap/adapter failures clearly.
 
 Gate: synthetic capture fixtures pass. Real packet cadence/revisits/region switching remain explicitly marked for Windows user testing until exercised. Commit/push.
+
+**2026-09-10 status: Complete (0.1.3).** Passive capture, context/identity routing, bounded retries and replay handling, one-second batched timer persistence/publication, adapter settings and health UI are implemented. Early unknown-context graves are held in memory for up to 10 seconds/64 markers within the same connection; unresolved entries are then skipped and may require a revisit. Cached identity is labeled for this session and remains distinct from live observer evidence. Sharing uploads and sender persistence remain in Steps 6–7. TypeScript, 31 focused tests and Windows build/package checks are recorded in `docs/step-3-verification.md`. Live game and desktop checks remain deferred to the user.
 
 ### Step 4 — Complete tracker and Settings interactions
 
