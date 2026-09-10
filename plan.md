@@ -356,7 +356,7 @@ After every completed step: run its relevant checks, update progress in this fil
 - [x] Resolve shared access: Convex development deployment plus a shared group key; Google integration removed.
 - [x] Configure repository-local Git author as Luis Fernando with the supplied email. No global Git identity changes.
 - [x] Prepare the revised Convex/character/auto-sync plan for this documentation step. Commit/push message: `docs: plan Convex sync and character attribution`.
-- [ ] Reverify published dependencies and upstream compatibility before copying code; record licenses/provenance.
+- [x] Reverify published dependencies and upstream compatibility before copying code; record licenses/provenance in `dependency-provenance.md` (2026-09-10).
 
 Gate: an agreed specification and the plan in the intended repository. A concrete owner-created Convex deployment and key are needed later for live integration, not to finish local implementation or internal tests.
 
