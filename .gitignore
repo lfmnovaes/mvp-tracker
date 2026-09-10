@@ -1,0 +1,12 @@
+/node_modules/
+/bin/
+/resources/
+/extensions/
+/dist/
+/release/
+/data/
+/logs/
+/.tmp/
+/.neu/
+neutralinojs.log
+*.tmp

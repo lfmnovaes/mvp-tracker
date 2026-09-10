@@ -1,0 +1,21 @@
+{
+  "name": "mvp-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Portable Windows boss tracker for Spirit Vale",
+  "author": "Luis Fernando <lfmnovaes@gmail.com>",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "setup": "neu update",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test ./tests",
+    "build": "bun scripts/build.ts && neu build",
+    "dev": "bun run build && bun scripts/run.ts",
+    "package": "bun run build && bun scripts/package.ts",
+    "check": "bun run typecheck && bun run test"
+  },
+  "dependencies": { "@neutralinojs/lib": "6.9.0", "preact": "10.29.8" },
+  "devDependencies": { "@neutralinojs/neu": "11.7.2", "typescript": "7.0.2", "@types/bun": "1.3.10" }
+}

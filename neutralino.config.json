@@ -1,0 +1,30 @@
+{
+  "applicationId": "dev.lfmnovaes.mvptracker",
+  "version": "0.1.0",
+  "applicationName": "MVP Tracker",
+  "applicationIcon": "resources/icon.png",
+  "author": "Luis Fernando",
+  "description": "Spirit Vale boss tracker",
+  "copyright": "Copyright 2026 Luis Fernando. GNU AGPL v3.",
+  "defaultMode": "window", "port": 0,
+  "enableServer": true, "enableNativeAPI": true, "enableExtensions": true,
+  "tokenSecurity": "one-time", "logging": { "enabled": false, "writeToLogFile": false },
+  "url": "/index.html", "documentRoot": "/resources/",
+  "nativeAllowList": ["app.broadcast", "app.exit", "events.*", "extensions.dispatch", "extensions.getStats", "window.*", "clipboard.readText", "clipboard.writeText"],
+  "extensions": [{
+    "id": "dev.lfmnovaes.backend",
+    "commandWindows": "\"${NL_PATH}/extensions/bin/bun.exe\" --no-orphans \"${NL_PATH}/extensions/backend/index.js\""
+  }],
+  "modes": { "window": {
+    "title": "MVP Tracker", "width": 1080, "height": 700, "minWidth": 820, "minHeight": 560,
+    "borderless": true, "resizable": true, "exitProcessOnClose": false,
+    "injectGlobals": true, "injectClientLibrary": false, "useLogicalPixels": true,
+    "icon": "/resources/icon.png"
+  } },
+  "cli": {
+    "binaryVersion": "6.9.0", "clientVersion": "6.9.0",
+    "resourcesPath": "resources", "extensionsPath": "extensions",
+    "binaryName": "mvp-tracker", "distributionPath": "dist",
+    "copyItems": ["LICENSE.txt", "THIRD_PARTY_NOTICES.md", "README.md", "dependency-provenance.md"]
+  }
+}

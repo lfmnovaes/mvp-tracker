@@ -1,0 +1,10 @@
+* text=auto
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.cs text eol=lf
+*.png binary
+*.ico binary
+# Preserve upstream license text exactly, including its original whitespace.
+licenses/** -whitespace

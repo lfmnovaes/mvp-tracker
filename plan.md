@@ -362,11 +362,13 @@ Gate: an agreed specification and the plan in the intended repository. A concret
 
 ### Step 1 — Minimal portable Windows shell
 
-- [ ] Scaffold trimmed Neutralino/Preact/TypeScript/Bun app, version metadata, dark tracker layout, icon, and notices.
-- [ ] Implement single instance, tray lifecycle, Settings shell, close-to-tray, taskbar minimize, optional start minimized, and F7/F8/F9 configuration.
-- [ ] Add typed UI/backend/clipboard boundaries, portable storage roots, errors, and essential log rotation.
+- [x] Scaffold trimmed Neutralino/Preact/TypeScript/Bun app, version metadata, dark tracker layout, icon, and notices.
+- [x] Implement single instance, tray lifecycle, Settings shell, close-to-tray, taskbar minimize, optional start minimized, and F7/F8/F9 configuration.
+- [x] Add typed UI/backend/clipboard boundaries, portable storage roots, errors, and essential log rotation.
 
 Gate: development/package smoke opens, hides/restores, keeps backend alive, and exits without orphan processes; no unrelated overlay UI/services. Commit/push.
+
+**2026-09-10 status:** Implementation is present; development UI, portable settings, F7/F8/F9 and clean Exit were exercised. Automated checks and local Windows packaging are recorded in `docs/step-1-verification.md`. The final native verification gate remains pending because the user stopped Computer Use with Escape before the extracted-package, tray-menu and remaining lifecycle tests. Do not mark the overall step complete until those checks pass.
 
 ### Step 2 — Catalog, timer core, and persistence
 

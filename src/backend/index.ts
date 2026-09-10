@@ -1,0 +1,163 @@
+import { resolve, join } from "node:path";
+import { NeutralinoClient } from "./neutralino-client";
+import { SettingsStore } from "./storage";
+import { Logger } from "./logger";
+import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, type Snapshot, type Update, type Action } from "../shared/protocol";
+
+const root = resolve(import.meta.dir, "../..");
+const native = await NeutralinoClient.fromStdin();
+let exiting = false;
+let ready = false;
+let uiReady = false;
+let companion: ReturnType<typeof Bun.spawn> | undefined;
+let store: SettingsStore;
+let logger: Logger;
+let state!: Snapshot;
+function send(command: string, extras: Record<string, unknown> = {}) {
+  if (!companion || !companion.stdin || typeof companion.stdin === "number") throw new Error("Windows companion unavailable.");
+  companion.stdin.write(JSON.stringify({ command, ...extras }) + "\n");
+}
+async function publish(update: Update) { await native.call("app.broadcast", { event: UPDATE, data: update }); }
+async function showFallback() {
+  await native.call("window.show");
+  if (await native.call<boolean>("window.isMinimized")) await native.call("window.unminimize");
+  await native.call("window.focus");
+}
+async function shellAction(action: string) {
+  if (action === "exit") { void exitApp(); return; }
+  if (action === "toggle") action = await native.call<boolean>("window.isVisible") && !await native.call<boolean>("window.isMinimized") ? "hide" : "show";
+  if (action === "hide") {
+    if (state?.trayReady) await native.call("window.hide");
+    else await showFallback();
+  } else if (action === "minimize") await native.call("window.minimize");
+  else if (["show", "settings", "add"].includes(action)) {
+    await showFallback();
+    if (companion?.exitCode === null) send("recover");
+  }
+  if (["show", "settings", "add", "sync"].includes(action)) await publish({ type: action as "show" | "settings" | "add" | "sync" });
+}
+async function exitApp() {
+  if (exiting) return; exiting = true;
+  logger?.write("stopped");
+  try { send("exit"); } catch { }
+  if (companion) {
+    await Promise.race([companion.exited, Bun.sleep(1500)]);
+    if (companion.exitCode === null) companion.kill();
+  }
+  try { await native.call("app.exit", { code: 0 }); } finally { process.exit(0); }
+}
+native.onClose(() => {
+  exiting = true;
+  try { send("exit"); } catch { }
+  void Promise.race([companion?.exited ?? Promise.resolve(), Bun.sleep(1500)]).then(() => {
+    if (companion?.exitCode === null) companion.kill();
+    process.exit(0);
+  });
+});
+process.on("SIGINT", () => void exitApp());
+process.on("SIGTERM", () => void exitApp());
+process.on("uncaughtException", () => { logger?.write("fatal"); void exitApp(); });
+process.on("unhandledRejection", () => { logger?.write("fatal"); void exitApp(); });
+native.on("windowClose", () => {
+  if (ready && state.trayReady) void shellAction("hide");
+  else void showFallback();
+});
+// Serialize mutations so a Save and an Exit cannot interleave writes.
+let queue = Promise.resolve();
+native.on(REQUEST, raw => {
+  queue = queue.then(async () => {
+    let id: string | undefined;
+    try {
+      const request = parseRequest(raw); id = request.id;
+      if (!ready) throw new Error("The Windows shell is starting. Please try again.");
+      let result: unknown = null;
+      switch (request.method) {
+        case "hotkeyCapture": send("capture", { active: request.input }); break;
+        case "snapshot":
+          if (!uiReady) {
+            uiReady = true;
+            // Let WebView2 finish its first layout before hiding; hiding during creation can leave it unpainted.
+            if (state.settings.startMinimized && state.trayReady) setTimeout(() => { if (!exiting) void shellAction("hide"); }, 500);
+          }
+          result = state; break;
+        case "saveSettings":
+          store.save(request.input); state.settings = request.input;
+          state.warning = store.warning; logger.write("settings-saved");
+          send("configure", { hotkeys: state.settings.hotkeys }); result = state; break;
+        case "shell":
+          if (request.input === "exit") { void exitApp(); return; }
+          if (!companion || companion.exitCode !== null) {
+            if (request.input === "show") await showFallback();
+            else if (request.input === "minimize") await native.call("window.minimize");
+            else throw new Error("Tray is unavailable. Keep this window open or use Exit.");
+          } else await shellAction(request.input);
+          break;
+        case "clipboardRead": {
+          const value = await native.call<string>("clipboard.readText");
+          if (typeof value !== "string" || value.length > 1_000_000) throw new Error("Clipboard text is too large.");
+          result = value; break;
+        }
+        case "clipboardWrite": await native.call("clipboard.writeText", { data: request.input }); break;
+      }
+      await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
+    } catch (error) {
+      logger?.write("rpc-failed");
+      // Only our deliberate validation/storage errors reach the UI; native payloads never do.
+      const message = error instanceof Error && /^(Invalid|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
+        ? error.message : "The action failed. Please retry or restart MVP Tracker.";
+      if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: message } }).catch(() => {});
+    }
+  });
+});
+async function initialize(trayReady: boolean) {
+  store = new SettingsStore(root);
+  logger = new Logger(join(root, "logs"));
+  const settings = store.load();
+  state = { version: VERSION, settings, storageWritable: store.writable,
+    warning: store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {} };
+  if (!trayReady) state.warning = "Tray is unavailable. Keep the window open; Exit is available in Settings.";
+  logger.write("started"); if (!store.writable) logger.write("storage-unavailable");
+  ready = true;
+  if (companion?.exitCode === null) send("configure", { hotkeys: settings.hotkeys });
+  await shellAction("show");
+  await publish({ type: "snapshot", value: state });
+}
+try {
+  companion = Bun.spawn([join(root, "extensions", "bin", "mvp-shell.exe"), String(process.pid), join(root, "extensions", "bin", "icon.ico")], {
+    stdin: "pipe", stdout: "pipe", stderr: "ignore", windowsHide: true,
+  });
+  const timeout = setTimeout(() => {
+    if (!ready && !exiting) { companion?.kill(); void initialize(false); }
+  }, 10_000);
+  void (async () => {
+    const reader = companion!.stdout;
+    if (!reader || typeof reader === "number") throw new Error("No companion stream.");
+    let partial = "";
+    for await (const chunk of reader) {
+      partial += new TextDecoder().decode(chunk);
+      if (partial.length > 32_000) throw new Error("Invalid companion response.");
+      let newline: number;
+      while ((newline = partial.indexOf("\n")) >= 0) {
+        const line = partial.slice(0, newline); partial = partial.slice(newline + 1);
+        let message: Record<string, unknown>; try { message = JSON.parse(line); } catch { continue; }
+        if (message.type === "duplicate") { clearTimeout(timeout); await exitApp(); return; }
+        if (message.type === "ready") { clearTimeout(timeout); if (!ready) await initialize(message.trayReady === true); }
+        else if (message.type === "hotkeys" && ready) {
+          state.hotkeyErrors = message.errors as Partial<Record<Action, string>>;
+          await publish({ type: "snapshot", value: state });
+        } else if (message.type === "action") {
+          if (["exit", "settings", "add", "sync", "show", "hide", "toggle", "minimize"].includes(String(message.action))) await shellAction(String(message.action));
+        } else if (message.type === "warning" && ready) await publish({ type: "snapshot", value: state });
+      }
+    }
+  })().catch(() => { logger?.write("native-unavailable"); });
+  void companion.exited.then(async () => {
+    clearTimeout(timeout);
+    if (exiting) return;
+    if (!ready) await initialize(false);
+    state.trayReady = false; state.warning = "The Windows companion stopped. Restart MVP Tracker to restore tray and shortcuts.";
+    logger.write("native-exited"); await showFallback(); await publish({ type: "snapshot", value: state });
+  });
+} catch { await initialize(false); }
+// If the view never connects, expose the window for diagnosis rather than trapping it in the tray.
+setTimeout(() => { if (!uiReady && !exiting) { logger?.write("frontend-timeout"); void showFallback(); } }, 20_000);
