@@ -16,4 +16,4 @@ test.skipIf(process.platform !== "win32")("native window placement survives roun
     if (!root.startsWith(join(tmpdir(), "mvp-placement-test-"))) throw new Error("Unsafe cleanup.");
     rmSync(root, { recursive: true, force: true });
   }
-});
+}, 30_000); // A cold .NET compiler on hosted Windows can exceed Bun's default 5 seconds.
