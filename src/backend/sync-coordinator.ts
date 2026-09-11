@@ -1,3 +1,5 @@
+import type { Logger } from "./logger";
+import { errorCategory } from "./log-context";
 import { createHash } from "node:crypto";
 import type { Selection } from "../domain/catalog";
 import { pendingUploads, validateSyncResult, type SyncCache } from "../domain/sync";
@@ -27,7 +29,7 @@ export class SyncCoordinator {
   private resetting = false;
   private pruneRequested = false;
   constructor(private transport: SyncTransport, private store: TimerStore, private selection: () => Selection, private sender: () => string | undefined,
-    private flush: () => void = () => {}, private changed: () => void = () => {}, interval = 60, private clock: SyncClock = systemClock, private jitter: () => number = Math.random) {
+    private flush: () => void = () => {}, private changed: () => void = () => {}, interval = 60, private clock: SyncClock = systemClock, private jitter: () => number = Math.random, private logger?: Logger) {
     this.state = { running: false, busy: false, queued: false, phase: "stopped", interval, message: "Sync stopped.", resetPending: !!this.cache()?.resetRequest };
   }
   snapshot(): SyncStatus { return { ...this.state, resetPending: !!this.cache()?.resetRequest, dataset: this.cache()?.dataset }; }
@@ -66,13 +68,16 @@ export class SyncCoordinator {
     const pruning = this.pruneRequested; this.pruneRequested = false;
     this.cancelTimer(); this.state.busy = true; this.state.phase = "syncing"; this.state.message = "Syncing…"; this.publish();
     const epoch = this.epoch;
-    let removedLocal = 0;
+    let removedLocal = 0, downloaded = 0; const started = this.clock.now(), logId = crypto.randomUUID();
     this.task = (async () => {
       try {
         if (pruning) {
           this.state.phase = "cleaning"; this.state.message = "Checking outdated entries…";
           this.flush(); removedLocal = this.store.pruneOutdated(); this.publish();
-          if (!this.transport.credentials().url) { this.state.message = `Removed ${removedLocal} outdated locally. No database configured.`; return; }
+          if (!this.transport.credentials().url) {
+            this.logger?.write("sync-completed", { component: "sync", operation: "prune", requestId: logId, durationMs: this.clock.now() - started, changed: removedLocal });
+            this.state.message = `Removed ${removedLocal} outdated locally. No database configured.`; return;
+          }
         }
         if (!this.transport.credentials().url) throw new Error("Sharing: save a Convex URL first.");
         const id = connectionId(this.transport.credentials());
@@ -86,7 +91,7 @@ export class SyncCoordinator {
             else {
             // The first request binds to current generation with no upload, preventing replay across Reset.
             const fresh = await this.transport.sync({ protocol: SHARING_PROTOCOL, datasetId: info.dataset.datasetId, generation: info.dataset.generation, sinceRevision: null, requestId: crypto.randomUUID(), observations: [], sentByCharacter: this.sender() ?? null });
-            if (epoch !== this.epoch) return; this.flush(); this.store.acceptSync(fresh, [], id, selectionId(this.selection())); cache = this.cache();
+            if (epoch !== this.epoch) return; this.flush(); this.store.acceptSync(fresh, [], id, selectionId(this.selection())); cache = this.cache(); downloaded += fresh.slots.length;
             }
           }
           this.discovered = true;
@@ -96,6 +101,7 @@ export class SyncCoordinator {
           const response = await this.transport.prune(cache.dataset); if (epoch !== this.epoch) return;
           if (!Number.isSafeInteger(response.removed) || response.removed < 0 || response.removed > 594 || !response.full || !response.pruneOutdated || response.dataset.datasetId !== cache.dataset.datasetId || response.dataset.generation !== cache.dataset.generation) throw new Error("Sharing: invalid cleanup response.");
           this.flush(); this.store.acceptSync(response, [], id, selectionId(this.selection()));
+          this.logger?.write("sync-completed", { component: "sync", operation: "prune", requestId: logId, durationMs: this.clock.now() - started, changed: removedLocal + response.removed, revision: response.dataset.revision });
           this.failures = 0; this.state.lastAt = this.clock.now(); this.state.message = `Removed ${removedLocal} outdated locally and ${response.removed} from the database.`; return;
         }
         this.flush(); const selection = this.selection(), selected = selectionId(selection);
@@ -105,6 +111,8 @@ export class SyncCoordinator {
         if (epoch !== this.epoch) return;
         if (response.dataset.datasetId !== cache.dataset.datasetId || response.dataset.generation !== cache.dataset.generation) throw new Error("Sharing: the dataset changed. Sync again to refresh.");
         this.flush(); this.store.acceptSync(response, outgoing, id, selected);
+        downloaded += response.slots.length;
+        if (outgoing.length || downloaded) this.logger?.write("sync-completed", { component: "sync", operation: "sync", requestId: logId, durationMs: this.clock.now() - started, uploaded: outgoing.length, downloaded, revision: response.dataset.revision });
         this.failures = 0; this.state.lastAt = this.clock.now(); this.state.message = "Synced.";
       } catch (error) {
         if (epoch !== this.epoch) return;
@@ -113,6 +121,7 @@ export class SyncCoordinator {
         const transient = /reach Convex|temporarily unavailable|quota|rate-limiting|timed out|connection.*retry/i.test(message);
         if (!transient || this.state.resetPending) { this.state.running = false; this.state.queued = false; this.state.phase = "paused"; }
         else this.state.phase = "backoff";
+        this.logger?.write("sync-failed", { component: "sync", operation: pruning ? "prune" : "sync", requestId: logId, durationMs: this.clock.now() - started, category: errorCategory(error), phase: this.state.phase });
       } finally {
         this.state.busy = false;
         if (epoch === this.epoch) {
@@ -171,6 +180,7 @@ export class SyncCoordinator {
     }
     if (epoch !== this.epoch) return;
     this.flush(); this.store.acceptSync({ dataset, serverTime: this.clock.now(), full: true, slots: [], acknowledged: [] }, [], cache.connectionId, selectionId(this.selection()));
+    this.logger?.write("sync-completed", { component: "sync", operation: "reset", requestId: request.id, revision: dataset.revision });
     this.state.resetPending = false; this.state.running = false; this.state.queued = false; this.discovered = false; this.state.lastAt = this.clock.now(); this.state.message = "Shared timers reset. Auto-sync is stopped.";
   }
 }

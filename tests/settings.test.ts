@@ -48,11 +48,11 @@ test("invalid request bodies retain a safe reply ID and clearing logs preserves 
 });
 test("logs rotate at their byte cap, retain five files and prune old logs", () => {
   const root = temporary(); const log = new Logger(root, 150, 5, 1000);
-  for (let i = 0; i < 30; i++) log.write("rpc-failed");
+  for (let i = 0; i < 30; i++) log.write("started");
   expect(readdirSync(root).length).toBe(5);
   for (const file of readdirSync(root)) {
     const text = readFileSync(join(root, file), "utf8"); expect(Buffer.byteLength(text)).toBeLessThanOrEqual(150);
-    for (const line of text.trim().split("\n")) expect(Object.keys(JSON.parse(line))).toEqual(["time", "event"]);
+    for (const line of text.trim().split("\n")) expect(Object.keys(JSON.parse(line))).toEqual(["time", "event", "version", "level"]);
     utimesSync(join(root, file), new Date(0), new Date(0));
   }
   log.write("started"); expect(readdirSync(root)).toEqual(["mvp-tracker.log"]);

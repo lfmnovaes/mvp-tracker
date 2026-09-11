@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { SharingConnection } from "../src/backend/sharing";
 import { parseConnection, type Discovery } from "../src/shared/sharing";
 import { parseRequest } from "../src/shared/protocol";
+import { Logger } from "../src/backend/logger";
 const roots: string[] = [], connections: SharingConnection[] = [];
 const config = { url: "https://test-group-123.convex.cloud" };
 const discovery = (): Discovery => ({ app: "mvp-tracker", protocol: 2, schema: 1, catalog: 1, serverTime: Date.now(), dataset: { datasetId: "dataset", generation: 1, revision: 0, resetAt: 0 } });
@@ -69,4 +70,14 @@ test("missing initialization, version, quota, clock and network failures stay di
     [() => new Response(JSON.stringify({ status: "error", errorMessage: "Could not find public function secret" }), { status: 560 }), "functions are missing"],
   ];
   for (const [mock, message] of fixtures) { const { c } = make((async () => mock()) as unknown as typeof fetch); c.configure(config); const status = await c.test(); expect(status.state).toBe("error"); expect(status.message).toContain(message); expect(status.message).not.toContain("secret"); }
+});
+
+test("transport diagnostics distinguish service failures and unchanged syncs stay quiet", async () => {
+  const { root } = make(); const log = new Logger(join(root, "logs"));
+  let failing = true;
+  const c = new SharingConnection(root, undefined, (async () => failing ? new Response("SECRET", { status: 503 }) : response({ dataset: discovery().dataset, full: false, serverTime: Date.now(), slots: [], acknowledged: [] })) as unknown as typeof fetch, log); connections.push(c); c.configure(config);
+  await c.test(); expect(log.recent().find(row => row.event === "sharing-failed")).toMatchObject({ category: "quota", operation: "test", status: 503 });
+  failing = false; log.clear();
+  await c.sync({ protocol: 2, datasetId: "dataset", generation: 1, requestId: crypto.randomUUID(), sinceRevision: 0, observations: [] });
+  expect(log.recent()).toEqual([]);
 });

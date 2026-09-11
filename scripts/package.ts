@@ -11,7 +11,9 @@ await mkdir(target, { recursive: true });
 await copyFile(join(root, "dist/mvp-tracker/mvp-tracker-win_x64.exe"), join(target, "MVP Tracker.exe"));
 await copyFile(join(root, "dist/mvp-tracker/resources.neu"), join(target, "resources.neu"));
 await cp(join(root, "extensions"), join(target, "extensions"), { recursive: true });
-for (const file of ["README.md", "LICENSE.txt", "THIRD_PARTY_NOTICES.md", "dependency-provenance.md"]) await copyFile(join(root, file), join(target, file));
+for (const file of ["README.md", "LICENSE.txt", "THIRD_PARTY_NOTICES.md", "dependency-provenance.md", "plan.md", ".env.local.sample"]) await copyFile(join(root, file), join(target, file));
+// Keep the portable README's relative help links usable outside the source checkout.
+await cp(join(root, "docs"), join(target, "docs"), { recursive: true });
 await cp(join(root, "resources/licenses"), join(target, "licenses"), { recursive: true });
 const source = join(target, "source"); await mkdir(source, { recursive: true });
 // Corresponding source is carried with the unsigned portable artifact.

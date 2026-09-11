@@ -1,3 +1,5 @@
+import type { Logger } from "./logger";
+import { errorCategory, type LogContext } from "./log-context";
 import { mkdirSync, existsSync, readFileSync, writeFileSync, renameSync, statSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ConvexHttpClient } from "convex/browser";
@@ -36,7 +38,7 @@ export class SharingConnection {
   private generation = 0;
   private active = new Set<AbortController>();
   private status: ConnectionStatus = { configured: false, url: "", state: "empty", message: "Sharing is not configured." };
-  constructor(root: string, private changed: () => void = () => {}, private fetcher: typeof fetch = globalThis.fetch) {
+  constructor(root: string, private changed: () => void = () => {}, private fetcher: typeof fetch = globalThis.fetch, private logger?: Logger) {
     this.file = join(root, "data", "sharing.json");
     const legacy = join(root, "data", "sharing-secrets.json");
     const source = existsSync(this.file) ? this.file : legacy;
@@ -56,10 +58,10 @@ export class SharingConnection {
   credentials(): Connection { return { ...this.config }; }
   async discover(initialize = false): Promise<Discovery> {
     const generation = this.generation;
-    const info = validateDiscovery(await this.request((c) => c.query(api.timers.testConnection, { protocol: SHARING_PROTOCOL })));
+    const info = validateDiscovery(await this.request("test", (c) => c.query(api.timers.testConnection, { protocol: SHARING_PROTOCOL })));
     if (generation !== this.generation) throw new SharingError("Connection changed. Retry with the saved connection.");
     if (Math.abs(info.serverTime - Date.now()) > CLOCK_SKEW) throw new SharingError("The Windows clock differs from the server by more than 30 seconds. Correct it before syncing.");
-    if (initialize && !info.dataset) info.dataset = await this.request((c) => c.mutation(api.timers.ensureInitialized, { protocol: SHARING_PROTOCOL }));
+    if (initialize && !info.dataset) info.dataset = await this.request("initialize", (c) => c.mutation(api.timers.ensureInitialized, { protocol: SHARING_PROTOCOL }));
     if (generation !== this.generation) throw new SharingError("Connection changed. Retry with the saved connection.");
     return info;
   }
@@ -69,7 +71,7 @@ export class SharingConnection {
     try {
       const info = await this.discover(true); if (generation !== this.generation) return this.snapshot();
       this.status = { ...this.status, state: "ready", message: "Database ready.", dataset: info.dataset!, testedAt: Date.now() };
-    } catch (e) { if (generation === this.generation) this.status = { ...this.status, state: "error", message: safeError(e).message, dataset: undefined }; }
+    } catch (e) { this.logger?.write("sharing-failed", { component: "sharing", operation: "initialize", category: errorCategory(safeError(e)) }); if (generation === this.generation) this.status = { ...this.status, state: "error", message: safeError(e).message, dataset: undefined }; }
     if (generation === this.generation) this.changed(); return this.snapshot();
   }
   configure(raw: Connection): ConnectionStatus {
@@ -79,18 +81,20 @@ export class SharingConnection {
       mkdirSync(dirname(this.file), { recursive: true });
       writeFileSync(temporary, JSON.stringify({ schemaVersion: 1, ...next }) + "\n", { encoding: "utf8", flush: true }); renameSync(temporary, this.file);
     } catch { try { unlinkSync(temporary); } catch {} throw new SharingError("Could not save the connection. Check portable folder write access and free space."); }
-    this.close(); this.config = next; this.resetStatus(); this.changed(); return this.snapshot();
+    this.close(); this.config = next; this.resetStatus(); this.logger?.write("connection-saved", { component: "sharing", operation: "configure" }); this.changed(); return this.snapshot();
   }
   private resetStatus() { this.status = { configured: !!this.config.url, url: this.config.url, state: this.config.url ? "untested" : "empty", message: this.config.url ? "Connection saved. Test it before syncing." : "Sharing is not configured." }; }
   close() { this.generation++; for (const controller of this.active) controller.abort(); this.active.clear(); }
-  private async request<T>(work: (client: ConvexHttpClient) => Promise<T>): Promise<T> {
+  private async request<T>(operation: LogContext["operation"], work: (client: ConvexHttpClient) => Promise<T>): Promise<T> {
     if (!this.config.url) throw new SharingError("Add a deployment URL first.");
     const config = { ...this.config }, generation = this.generation, controller = new AbortController(); this.active.add(controller);
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const started = performance.now(), requestId = crypto.randomUUID(); let timedOut = false, status: number | undefined;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 8000);
     const guardedFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const target = new URL(input instanceof Request ? input.url : String(input));
       if (target.origin !== config.url || !["/api/query", "/api/mutation"].includes(target.pathname)) throw new SharingError("Unexpected connection destination.");
       const response = await this.fetcher(input, { ...init, redirect: "error", signal: controller.signal });
+      status = response.status;
       if (response.status === 429) throw new SharingError("Convex is rate-limiting requests. Wait before retrying and check your usage.");
       if (response.status >= 500 && response.status !== 560) throw new SharingError("Convex is temporarily unavailable or its quota is exhausted. Retry later and check the dashboard.");
       return response;
@@ -99,27 +103,33 @@ export class SharingConnection {
       const client = new ConvexHttpClient(config.url, { logger: false, fetch: guardedFetch });
       const result = await work(client);
       if (this.generation !== generation || controller.signal.aborted) throw new SharingError("Connection changed or the request timed out. Its response was discarded.");
+      if (operation !== "sync") this.logger?.write("sharing-request", { component: "sharing", operation, requestId, durationMs: performance.now() - started, status });
       return result;
-    } catch (e) { throw safeError(e); } finally { clearTimeout(timeout); this.active.delete(controller); }
+    } catch (e) {
+      const failure = this.generation !== generation ? new SharingError("Connection changed. Retry with the saved connection.") : timedOut ? new SharingError("The request timed out. Check your connection and retry.") : safeError(e);
+      this.logger?.write("sharing-failed", { component: "sharing", operation, requestId, durationMs: performance.now() - started, status, category: errorCategory(failure) });
+      throw failure;
+    } finally { clearTimeout(timeout); this.active.delete(controller); }
   }
   async test(): Promise<ConnectionStatus> {
     const generation = this.generation;
     if (this.status.state === "testing") return this.snapshot();
     this.status = { ...this.status, state: "testing", message: "Testing connection…", dataset: undefined }; this.changed();
     try {
-      const discovery = validateDiscovery(await this.request((c) => c.query(api.timers.testConnection, { protocol: SHARING_PROTOCOL })));
+      const discovery = validateDiscovery(await this.request("test", (c) => c.query(api.timers.testConnection, { protocol: SHARING_PROTOCOL })));
       if (generation !== this.generation) return this.snapshot();
       if (!discovery.dataset) throw new SharingError(errors.NOT_INITIALIZED!);
       if (Math.abs(discovery.serverTime - Date.now()) > CLOCK_SKEW) throw new SharingError("The Windows clock differs from the server by more than 30 seconds. Correct it before syncing.");
       this.status = { ...this.status, state: "ready", message: "Connection ready.", dataset: discovery.dataset, testedAt: Date.now() };
     } catch (e) {
+      this.logger?.write("sharing-failed", { component: "sharing", operation: "test", category: errorCategory(safeError(e)) });
       if (generation === this.generation) this.status = { ...this.status, state: "error", message: safeError(e).message, dataset: undefined };
     }
     if (generation === this.generation) this.changed();
     return this.snapshot();
   }
-  pull(expected: Dataset) { return this.request((c) => c.query(api.timers.snapshot, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation })); }
-  sync(input: SyncInput) { return this.request((c) => c.mutation(api.timers.sync, input)); }
-  prune(expected: Dataset) { return this.request(c => c.mutation(api.timers.pruneOutdated, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation })); }
-  reset(expected: Dataset, requestId: string) { return this.request((c) => c.mutation(api.timers.reset, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation, requestId })); }
+  pull(expected: Dataset) { return this.request("snapshot", (c) => c.query(api.timers.snapshot, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation })); }
+  sync(input: SyncInput) { return this.request("sync", (c) => c.mutation(api.timers.sync, input)); }
+  prune(expected: Dataset) { return this.request("prune", c => c.mutation(api.timers.pruneOutdated, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation })); }
+  reset(expected: Dataset, requestId: string) { return this.request("reset", (c) => c.mutation(api.timers.reset, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation, requestId })); }
 }

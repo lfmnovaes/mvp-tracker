@@ -1,3 +1,4 @@
+import { errorCategory, type LogContext } from "./log-context";
 import { resolve, join } from "node:path";
 import { NeutralinoClient } from "./neutralino-client";
 import { SettingsStore } from "./storage";
@@ -101,17 +102,17 @@ native.on(REQUEST, raw => {
   // Network tests must not hold the local write queue: connection changes and Exit can cancel them.
   if (["sharingTest", "sharingReset"].includes((raw as { method: string })?.method)) {
     void (async () => {
-      let id = requestId(raw);
+      let id = requestId(raw); const began = performance.now(); const operation = (raw as { method?: LogContext["operation"] })?.method;
       try {
         const request = parseRequest(raw); id = request.id;
         if (!ready || exiting) throw new Error();
         const result = request.method === "sharingReset" ? (await sync.reset(request.input), sync.snapshot()) : await sharing.test();
         await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
-      } catch (e) { if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: e instanceof Error && e.message.startsWith("Sharing:") ? e.message : "Sharing: connection action unavailable. Retry after startup." } }).catch(() => {}); }
+      } catch (e) { logger?.write("rpc-failed", { component: "backend", operation, requestId: id, durationMs: performance.now() - began, category: errorCategory(e) }); if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: e instanceof Error && e.message.startsWith("Sharing:") ? e.message : "Sharing: connection action unavailable. Retry after startup." } }).catch(() => {}); }
     })(); return;
   }
   queue = queue.then(async () => {
-    let id = requestId(raw);
+    let id = requestId(raw); const began = performance.now(); const operation = (raw as { method?: LogContext["operation"] })?.method;
     try {
       const request = parseRequest(raw); id = request.id;
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
@@ -162,7 +163,7 @@ native.on(REQUEST, raw => {
         case "diagnostics": {
           if (request.input === "open") {
             const explorer = Bun.spawn([join(process.env.WINDIR ?? "C:/Windows", "explorer.exe"), join(root, "logs")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: false });
-            explorer.unref(); result = "Opened the logs folder.";
+            explorer.unref(); logger.write("logs-opened", { component: "native", operation: "diagnostics" }); result = "Opening the logs folder…";
           } else if (request.input === "clear") { logger.clear(); result = "Logs cleared."; } else if (request.input === "copy") {
             await native.call("clipboard.writeText", { data: diagnostics.report(state, logger.recent(), Date.now()) }); result = "Sanitized diagnostics copied to the clipboard.";
           } else {
@@ -209,7 +210,7 @@ native.on(REQUEST, raw => {
       }
       await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
     } catch (error) {
-      logger?.write("rpc-failed");
+      logger?.write("rpc-failed", { component: "backend", operation, requestId: id, durationMs: performance.now() - began, category: errorCategory(error) });
       // Only our deliberate validation/storage errors reach the UI; native payloads never do.
       const message = error instanceof Error && /^(Logs could|Sharing:|Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
         ? error.message : "The action failed. Please retry or restart MVP Tracker.";
@@ -227,20 +228,20 @@ async function initialize(trayReady: boolean) {
   sharing = new SharingConnection(root, () => {
     state.sharing = sharing.snapshot();
     if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
-  });
+  }, undefined, logger);
   state.sharing = sharing.snapshot();
   sync = new SyncCoordinator(sharing, timers, () => state.settings.tracking, () => capture?.snapshot().identity.name, flushObservations, () => {
     state.sync = sync.snapshot(); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
     if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
-  }, settings.syncInterval);
+  }, settings.syncInterval, undefined, undefined, logger);
   state.sync = sync.snapshot();
   capture = new CaptureService(settings.capture, observation => {
     const key = slotKey(observation), pending = pendingObservations.get(key);
     if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);
-  }, undefined, Date.now, event => logger.write(event));
+  }, undefined, Date.now, event => logger.write(event, { component: "capture" }));
   void capture.restart();
   if (!trayReady) state.warning = "Tray is unavailable. Keep the window open; Exit is available in Settings.";
-  logger.write("started"); if (!store.writable) logger.write("storage-unavailable");
+  logger.write("started", { component: "backend", operation: "startup" }); if (!store.writable) logger.write("storage-unavailable");
   ready = true;
   if (companion?.exitCode === null) send("configure", { hotkeys: settings.hotkeys });
   await shellAction("show");

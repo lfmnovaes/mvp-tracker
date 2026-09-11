@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 11 September 2026. Steps 0–7 are complete (app version 0.1.7). Latest follow-up removes group keys and the integration environment entirely: players use only the Settings URL. Character name remains optional. Sharing protocol 2 requires matching owner-deployed functions. Both TypeScript projects and 73 unit tests pass. Owner deployment and manual group testing remain pending; see docs/step-7-url-only.md.
+Updated 11 September 2026. Steps 0–7 and Step 8 engineering checks are complete (app version 0.1.8); Step 8 user acceptance remains pending. Players use only the Settings URL, with optional character name. Sharing protocol 2 requires matching owner-deployed functions. Both TypeScript projects and 81 unit tests pass. This update changes no Convex functions or schema. See docs/step-8-verification.md and docs/windows-validation.md.
 
 ## 1. Agreed scope
 
@@ -442,12 +442,15 @@ Gate: deterministic scheduler/backend tests pass; manual sync can run alongside 
 
 ### Step 8 — Windows and private-group validation
 
-- [ ] Improve sanitized logs with operation/method, request correlation ID, elapsed time, app/component version/state and bounded error categories. Keep rotation/retention and exclude keys, names, private URLs, packet/clipboard data and complete function arguments. Add useful connection failure context without raw remote exceptions; verify Open logs and Clear logs on Windows.
+- [x] Improve sanitized logs with operation/method, request correlation ID, elapsed time, app/component version/state and bounded error categories. Keep rotation/retention and exclude keys, names, private URLs, packet/clipboard data and complete function arguments. Add useful connection failure context without raw remote exceptions. Unit-test Clear logs and redacted diagnostic exports.
+- [ ] User verifies Open logs launches the expected Explorer folder and Clear logs works through the actual app.
 
-- [ ] Run the matrix below; fix discovered failures and record exact tested Windows/runtime versions.
+- [x] Run the automated portion of the matrix below; record exact build-host Windows/runtime versions. Both TypeScript projects and 81 tests pass; portable ZIP structure/version/x64/local-state checks pass. Live/manual portions remain below.
 - [ ] Have the user manually test the real shared Convex development URL, sender names, multiple players, interval changes, Start/Stop, and reset; exercise actual transaction races on a disposable deployment.
 - [ ] Validate fresh grave, revisit, channel/region transition, game restart, Npcap failure, tray capture, sleep/resume, DPI, and portable upgrade on Windows 11.
-- [ ] Inspect logs/exports/package for accidental credentials or local data; write concise setup/troubleshooting instructions.
+- [x] Inspect logs/exports/package for accidental credentials or local data; write concise setup/troubleshooting instructions.
+
+**Engineering checks complete (0.1.8); user acceptance pending.** Sanitized context, bounded failure throttling, quiet unchanged syncs, diagnostic schema 2, repeatable portable verification and a short user checklist are in place. See docs/step-8-verification.md, docs/troubleshooting.md and docs/windows-validation.md. No live cloud writes, real database Reset, manual desktop/capture or clean-machine checks were performed for this step.
 
 Gate: no unresolved local data-loss bug; sync limitations accurately documented; unperformed live tests explicitly listed. Commit/push.
 
