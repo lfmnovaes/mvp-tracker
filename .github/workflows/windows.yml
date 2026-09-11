@@ -1,0 +1,93 @@
+name: Windows portable
+
+on:
+  push:
+    branches: [main]
+    tags: ['app-v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.21.0'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.2'
+      - name: Validate version and tag
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') { throw 'Invalid app version.' }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "app-v$version") { throw 'Tag and app version differ.' }
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run benchmark
+      - run: bun run setup
+      - run: bun run package
+      - name: Inspect portable ZIP
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          ./scripts/verify-portable.ps1 -ArchivePath "release/MVP-Tracker-$version-windows-x64.zip"
+          ./scripts/test-package.ps1 -ArchivePath "release/MVP-Tracker-$version-windows-x64.zip"
+          $manifest = Get-Content "release/MVP-Tracker-$version-windows-x64.manifest.json" -Raw | ConvertFrom-Json
+          if ($manifest.sourceDirty -or $manifest.sourceCommit -ne $env:GITHUB_SHA) { throw 'Package source differs from the checkout.' }
+          git diff --exit-code
+          if ($LASTEXITCODE -ne 0) { throw 'Build modified tracked source.' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-x64-${{ github.run_number }}
+          path: |
+            release/*.zip
+            release/*.manifest.json
+            release/*.sha256
+            release/RELEASE-NOTES.md
+          if-no-files-found: error
+          retention-days: 7
+
+  draft-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/app-v')
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-x64-${{ github.run_number }}
+          path: assets
+      - name: Create draft release without replacing existing assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^app-v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:\.\d+)?$') { throw 'Invalid release tag.' }
+          $stem = "MVP-Tracker-$version-windows-x64"
+          $manifest = Get-Content "assets/$stem.manifest.json" -Raw | ConvertFrom-Json
+          if ($manifest.version -ne $version -or $manifest.sourceCommit -ne $env:GITHUB_SHA -or $manifest.sourceDirty) { throw 'Release provenance mismatch.' }
+          foreach ($line in Get-Content "assets/$stem.sha256") {
+            if ($line -notmatch '^([a-f0-9]{64})  (MVP-Tracker-[0-9.]+-windows-x64\.(zip|manifest\.json))$') { throw 'Invalid checksum record.' }
+            $expected = $Matches[1]; $file = $Matches[2]
+            if ((Get-FileHash -LiteralPath "assets/$file" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Release checksum mismatch.' }
+          }
+          gh release create $env:GITHUB_REF_NAME "assets/$stem.zip" "assets/$stem.manifest.json" "assets/$stem.sha256" --verify-tag --draft --title "MVP Tracker $version" --notes-file assets/RELEASE-NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Release already exists or creation failed; no assets were overwritten.' }

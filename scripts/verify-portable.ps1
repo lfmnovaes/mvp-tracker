@@ -29,6 +29,18 @@ try {
   $config = (Read-Text $files['source/neutralino.config.json']) | ConvertFrom-Json
   $protocol = Read-Text $files['source/src/shared/protocol.ts']
   if ($config.version -ne $metadata.version -or $protocol -notmatch ('VERSION = "' + [regex]::Escape($metadata.version) + '"')) { throw 'Version metadata mismatch.' }
+  if (!$files.ContainsKey('release-manifest.json')) { throw 'Release manifest missing.' }
+  $manifest = (Read-Text $files['release-manifest.json']) | ConvertFrom-Json
+  if ($manifest.schemaVersion -ne 1 -or $manifest.version -ne $metadata.version -or $manifest.target -ne 'windows-x64' -or !$manifest.unsigned) { throw 'Invalid release manifest.' }
+  $listed = @{}
+  foreach ($entry in $manifest.files) {
+    if ($listed.ContainsKey($entry.path) -or !$files.ContainsKey($entry.path) -or $entry.path -eq 'release-manifest.json') { throw 'Invalid manifest path.' }
+    $listed[$entry.path] = $true
+    $stream = $files[$entry.path].Open(); $hasher = [Security.Cryptography.SHA256]::Create()
+    try { $hash = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant() } finally { $stream.Dispose(); $hasher.Dispose() }
+    if ($hash -ne $entry.sha256 -or $files[$entry.path].Length -ne $entry.bytes) { throw ('Manifest content mismatch: ' + $entry.path) }
+  }
+  if ($listed.Count -ne $files.Count - 1) { throw 'Unlisted package files.' }
   $executables = @('MVP Tracker.exe','extensions/bin/bun.exe','extensions/bin/mvp-shell.exe')
   foreach ($file in $files.Keys) { if ($file.EndsWith('.exe') -and $file -notin $executables) { throw 'Unexpected executable.' } }
   foreach ($file in $executables) {
@@ -42,5 +54,5 @@ try {
       if ($reader.ReadUInt32() -ne 17744 -or $reader.ReadUInt16() -ne 34404) { throw 'Executable is not Windows x64.' }
     } finally { $reader.Dispose() }
   }
-  [pscustomobject]@{ Version=$metadata.version; Files=$files.Count; Executables='3 Windows x64'; LocalState='excluded'; ZipBytes=(Get-Item -LiteralPath $packageFile).Length; SHA256=(Get-FileHash -LiteralPath $packageFile -Algorithm SHA256).Hash } | ConvertTo-Json
+  [pscustomobject]@{ Version=$metadata.version; Files=$files.Count; Executables='3 Windows x64'; LocalState='excluded'; Manifest='all file hashes verified'; ZipBytes=(Get-Item -LiteralPath $packageFile).Length; SHA256=(Get-FileHash -LiteralPath $packageFile -Algorithm SHA256).Hash } | ConvertTo-Json
 } finally { $zip.Dispose() }

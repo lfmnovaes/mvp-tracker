@@ -1,5 +1,5 @@
-import { cp, mkdir, copyFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { cp, mkdir, copyFile, rm } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
 if (process.platform !== "win32" || process.arch !== "x64") throw new Error("Build on Windows x64.");
 const root = resolve(import.meta.dir, "..");
 process.chdir(root);
@@ -7,6 +7,13 @@ const metadata = await Bun.file("package.json").json();
 const config = await Bun.file("neutralino.config.json").json();
 const { VERSION } = await import("../src/shared/protocol");
 if (metadata.version !== VERSION || config.version !== VERSION) throw new Error("Version metadata differs.");
+// Recreate generated resources so stale files cannot enter resources.neu.
+for (const name of ["resources", "extensions"]) {
+  const target = resolve(root, name);
+  if (!target.startsWith(root + sep)) throw new Error("Unsafe generated path.");
+  if (process.execPath.startsWith(target + sep)) throw new Error("Use an installed Bun to rebuild, not the bundled runtime.");
+  await rm(target, { recursive: true, force: true });
+}
 async function run(args: string[]) {
   const child = Bun.spawn(args, { stdout: "inherit", stderr: "inherit", windowsHide: true });
   if (await child.exited) throw new Error(`Build command failed: ${args[0]}`);

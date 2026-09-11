@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 11 September 2026. Steps 0–7 and Step 8 engineering checks are complete (app version 0.1.8.1); Step 8 user acceptance remains pending. Players use only the Settings URL, with optional character name. Sharing protocol 2 requires matching owner-deployed functions. Both TypeScript projects and 84 unit tests pass. This update changes no Convex functions or schema. See docs/0.1.8.1-verification.md and docs/windows-validation.md.
+Updated 11 September 2026. App version 0.1.8.2 adds Step 9 release automation and a Step 8 paste-back test plan. Steps 0–8 engineering checks are complete; live/manual acceptance remains pending. Both TypeScript projects and 85 unit tests pass. No Convex functions/schema changed. See docs/step-9-verification.md, docs/releases.md and docs/test-report.md.
 
 0.1.8.1 follow-up: explicitly persist normal window bounds and monitor in `data/window.json`, restore monitor-relative coordinates and recover to the primary screen when disconnected. Status ascending order is Spawned → Spawn window → Waiting → Outdated → No data. Changed rows use a two-second highlight/fade, including gathered-only refreshes; unchanged snapshots do not restart it. Gathered time has ten 15-minute green/yellow/orange/red bands and an eleventh muted-red Outdated state. Retain only local release artifacts for 0.1.8 and 0.1.8.1.
 
@@ -458,8 +458,12 @@ Gate: no unresolved local data-loss bug; sync limitations accurately documented;
 
 ### Step 9 — Repeatable unsigned Windows releases
 
-- [ ] Add CI, manual dry run, portable packaging, artifact verification, checksums/licenses/source manifest, and tagged publication.
-- [ ] Produce a test artifact, validate on a clean supported Windows machine, then publish the agreed version.
+- [x] Add CI for pushes/PRs, manual dry run, portable packaging, artifact verification/tamper rejection, checksums/licenses/source manifest, and version-checked tagged draft releases.
+- [x] Produce and inspect a local test artifact, with 42/594-slot performance measurements and corresponding source.
+- [ ] Confirm a clean GitHub runner dry run and tagged draft release; record the run URLs in docs/step-9-verification.md.
+- [ ] User validates on a clean supported Windows 11 machine, supplies the Step 8 report, then publishes the draft release.
+
+0.1.8.2: automated work is implemented. Only tagged pushes may create a draft; ordinary pushes/PRs/manual dry runs do not publish. Acceptance testing remains distinct from build verification. See docs/releases.md and docs/test-report.md.
 
 Gate: a clean checkout produces a verified portable ZIP; the user can run it with documented system prerequisites and preserve data through an upgrade. Commit/push before the release tag.
 

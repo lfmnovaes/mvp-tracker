@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.8.1**. Local tracking works without Convex.
+Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.8.2**. Local tracking works without Convex.
 
 ## First run
 
@@ -44,6 +44,6 @@ Keep the CLI-generated `.env.local`: `CONVEX_DEPLOYMENT` selects the owner's dep
 
 Reset clears tracker data and restores metadata for the deployed backend; schema/function updates require the owner's CLI command. Anyone with the deployment URL can use the tracker endpoints. There is no group-key or integration-environment setup.
 
-For errors, use Settings → Capture & diagnostics → Copy diagnostics. [Troubleshooting](docs/troubleshooting.md) · [User validation checklist](docs/windows-validation.md).
+For errors, use Settings → Capture & diagnostics → Copy diagnostics. [Test and paste-back checklist](docs/test-report.md) · [Troubleshooting](docs/troubleshooting.md). [Release builds and checksums](docs/releases.md).
 
-Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/0.1.8.1-verification.md).
+Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/step-9-verification.md).

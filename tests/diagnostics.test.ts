@@ -28,6 +28,8 @@ test("diagnostic exports exclude private settings, names, adapter labels and arb
     expect(JSON.parse(report).version).toBe(VERSION);
     expect(JSON.parse(report).schemaVersion).toBe(2);
     expect(JSON.parse(report).health.sync.phase).toBe("paused");
+    expect(JSON.parse(report).health.sync.revision).toBe(1);
+    expect(JSON.parse(report).health.timers).toEqual({ total: 0, outdated: 0 });
   } finally {
     if (!root.startsWith(join(tmpdir(), "mvp-diagnostics-test-"))) throw new Error("Unsafe cleanup.");
     rmSync(root, { recursive: true, force: true });

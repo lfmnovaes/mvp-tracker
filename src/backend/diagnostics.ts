@@ -1,17 +1,20 @@
 import type { Snapshot } from "../shared/protocol";
 import { release } from "node:os";
 import type { LogRecord } from "./logger";
+import { timerStatus } from "../domain/timers";
 export const TOOLS_VERSIONS = { capture: "3.0.2", character: "0.6.1" } as const;
 // Deliberately construct exports field-by-field. Never copy native error strings,
 // adapter descriptions, names, settings, timers or paths into a diagnostic report.
 export function healthSample(snapshot: Snapshot, at: number) {
   const c = snapshot.capture;
+  const outdated = snapshot.timers.filter(slot => timerStatus(slot, at) === "outdated").length;
   return { at, capture: c.state, game: c.game, adapterSelected: !!c.adapter,
     adaptersAvailable: c.devices.length, lastPacketAt: c.lastPacketAt,
     retryAt: c.retryAt, skipped: c.skipped, unresolved: c.unresolved,
     backendConnected: true, trayReady: snapshot.trayReady, storageWritable: snapshot.storageWritable,
+    timers: { total: snapshot.timers.length, outdated },
     sharing: snapshot.sharing ? { configured: snapshot.sharing.configured, state: snapshot.sharing.state } : undefined,
-    sync: snapshot.sync ? { phase: snapshot.sync.phase, running: snapshot.sync.running, interval: snapshot.sync.interval, busy: snapshot.sync.busy, lastAt: snapshot.sync.lastAt } : undefined };
+    sync: snapshot.sync ? { phase: snapshot.sync.phase, running: snapshot.sync.running, interval: snapshot.sync.interval, busy: snapshot.sync.busy, queued: snapshot.sync.queued, resetPending: snapshot.sync.resetPending, lastAt: snapshot.sync.lastAt, nextAt: snapshot.sync.nextAt, revision: snapshot.sync.dataset?.revision } : undefined };
 }
 export class Diagnostics {
   until = 0;
