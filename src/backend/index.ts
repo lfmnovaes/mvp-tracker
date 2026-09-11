@@ -1,6 +1,7 @@
 import { resolve, join } from "node:path";
 import { NeutralinoClient } from "./neutralino-client";
 import { SettingsStore } from "./storage";
+import { SharingConnection } from "./sharing";
 import { Logger } from "./logger";
 import { TimerStore } from "./timer-store";
 import { CaptureService } from "./capture-service";
@@ -20,6 +21,7 @@ let store: SettingsStore;
 let logger: Logger;
 let timers: TimerStore;
 let capture: CaptureService | undefined;
+let sharing: SharingConnection;
 const diagnostics = new Diagnostics();
 const pendingObservations = new Map<string, Observation>();
 function flushObservations() {
@@ -60,6 +62,7 @@ async function shellAction(action: string) {
 }
 async function exitApp() {
   if (exiting) return; exiting = true;
+  sharing?.close();
   clearInterval(cleanupTimer); await capture?.stop(); flushObservations(); timers?.close();
   logger?.write("stopped");
   try { send("exit"); } catch { }
@@ -71,6 +74,7 @@ async function exitApp() {
 }
 native.onClose(() => {
   exiting = true;
+  sharing?.close();
   clearInterval(cleanupTimer); void capture?.stop(); flushObservations(); timers?.close();
   try { send("exit"); } catch { }
   void Promise.race([companion?.exited ?? Promise.resolve(), Bun.sleep(1500)]).then(() => {
@@ -89,6 +93,18 @@ native.on("windowClose", () => {
 // Serialize mutations so a Save and an Exit cannot interleave writes.
 let queue = Promise.resolve();
 native.on(REQUEST, raw => {
+  // Network tests must not hold the local write queue: connection changes and Exit can cancel them.
+  if ((raw as { method?: string })?.method === "sharingTest") {
+    void (async () => {
+      let id: string | undefined;
+      try {
+        const request = parseRequest(raw); id = request.id;
+        if (!ready || exiting) throw new Error();
+        const result = await sharing.test();
+        await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
+      } catch { if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: "Sharing: connection test unavailable. Retry after startup." } }).catch(() => {}); }
+    })(); return;
+  }
   queue = queue.then(async () => {
     let id: string | undefined;
     try {
@@ -96,6 +112,8 @@ native.on(REQUEST, raw => {
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
       let result: unknown = null;
       switch (request.method) {
+        case "sharingRead": result = sharing.credentials(); break;
+        case "sharingSave": result = sharing.configure(request.input); break;
         case "removeTimer": {
           pendingObservations.delete(slotKey(request.input));
           timers.remove(request.input); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
@@ -177,7 +195,7 @@ native.on(REQUEST, raw => {
     } catch (error) {
       logger?.write("rpc-failed");
       // Only our deliberate validation/storage errors reach the UI; native payloads never do.
-      const message = error instanceof Error && /^(Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
+      const message = error instanceof Error && /^(Sharing:|Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
         ? error.message : "The action failed. Please retry or restart MVP Tracker.";
       if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: message } }).catch(() => {});
     }
@@ -190,6 +208,11 @@ async function initialize(trayReady: boolean) {
   timers = new TimerStore(root, settings.tracking);
   state = { version: VERSION, settings, storageWritable: store.writable,
     warning: timers.warning ?? store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {}, timers: timers.selectedSnapshot(), capture: emptyCapture(), diagnosticsUntil: 0 };
+  sharing = new SharingConnection(root, () => {
+    state.sharing = sharing.snapshot();
+    if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
+  });
+  state.sharing = sharing.snapshot();
   capture = new CaptureService(settings.capture, observation => {
     const key = slotKey(observation), pending = pendingObservations.get(key);
     if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);

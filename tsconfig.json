@@ -4,5 +4,6 @@
     "lib": ["ES2022", "DOM"], "types": ["bun"], "jsx": "react-jsx", "jsxImportSource": "preact",
     "strict": true, "noEmit": true, "skipLibCheck": true, "allowImportingTsExtensions": true
   },
-  "include": ["src", "scripts", "tests"]
+  "include": ["src", "scripts", "tests", "convex", "vitest.config.ts"],
+  "exclude": ["scripts/convex-codegen-offline.ts"]
 }

@@ -14,6 +14,7 @@ export interface Observation extends Slot {
   observedByCharacter?: string;
   instanceId?: string;
   replacesObservationId?: string;
+  submission?: { submittedByCharacter: string; serverAcceptedAt: number };
 }
 export interface TimerSlot extends Slot { observation?: Observation; outdated: boolean }
 export type TimerStatus = "waiting" | "window" | "spawned" | "outdated" | "empty";
@@ -41,8 +42,19 @@ export function parseObservation(raw: unknown, now: number): Observation {
   if (o.source === "gravestone" && o.gatheredAt >= o.diedAt + SPAWN_AFTER + CLOCK_SKEW) throw new Error("Invalid gravestone timing: the observation contradicts the 90-minute respawn rule.");
   const fields = { killedBy: boundedText(o.killedBy, 80), observedByCharacter: boundedText(o.observedByCharacter, 80), instanceId: boundedText(o.instanceId, 160),
     replacesObservationId: o.replacesObservationId === undefined ? undefined : observationId(o.replacesObservationId) };
+  let submission: Observation["submission"];
+  if (o.submission !== undefined) {
+    const name = boundedText(o.submission?.submittedByCharacter, 80), at = o.submission?.serverAcceptedAt;
+    if (!name || !Number.isSafeInteger(at) || at < 0 || at > now + CLOCK_SKEW) throw new Error("Invalid submission metadata.");
+    submission = { submittedByCharacter: name, serverAcceptedAt: at };
+  }
   return { ...slot, observationId: observationId(o.observationId), diedAt: o.diedAt, gatheredAt: o.gatheredAt, source: o.source, timePrecision: o.timePrecision,
-    ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)) };
+    ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)), ...(submission ? { submission } : {}) };
+}
+// Transport attribution is not part of an observation's evidence identity.
+export function evidenceContent(o: Observation): string {
+  return JSON.stringify([o.mobId, o.region, o.channel, o.observationId, o.diedAt, o.gatheredAt, o.source, o.timePrecision,
+    o.killedBy, o.observedByCharacter, o.instanceId, o.replacesObservationId]);
 }
 export function timerStatus(slot: TimerSlot, now: number): TimerStatus {
   if (!slot.observation) return slot.outdated ? "outdated" : "empty";
@@ -63,7 +75,7 @@ export function mergeObservations(current: readonly TimerSlot[], raw: readonly u
   const incoming = raw.map(o => parseObservation(o, now));
   const identities = new Map<string, string>();
   for (const o of [...current.flatMap(s => s.observation ? [s.observation] : []), ...incoming]) {
-    const data = JSON.stringify(o);
+    const data = evidenceContent(o);
     if (identities.has(o.observationId) && identities.get(o.observationId) !== data) throw new Error("Invalid reused observation ID with conflicting content.");
     identities.set(o.observationId, data);
   }
@@ -75,7 +87,11 @@ export function mergeObservations(current: readonly TimerSlot[], raw: readonly u
       if (!old?.observation) slots.set(key, emptySlot(o, true));
       continue;
     }
-    if (old?.observation && (old.observation.observationId === o.observationId || compareEvidence(o, old.observation) <= 0)) continue;
+    if (old?.observation?.observationId === o.observationId) {
+      if (!old.observation.submission && o.submission) slots.set(key, { ...old, observation: o });
+      continue;
+    }
+    if (old?.observation && compareEvidence(o, old.observation) <= 0) continue;
     slots.set(key, { ...emptySlot(o), observation: o });
   }
   return ordered(slots.values());

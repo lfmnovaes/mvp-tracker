@@ -4,7 +4,8 @@ import { parseSlot, type TimerSlot, type Slot } from "../domain/timers";
 import { parseManualRequest, type ManualRequest } from "../domain/manual";
 import { EXCHANGE_LIMIT, type ExportFormat, type ImportSummary } from "./exchange";
 import { captureDefaults, parseCaptureSettings, type CaptureSettings, type CaptureSnapshot } from "./capture";
-export const VERSION = "0.1.5";
+import { parseConnection, type Connection, type ConnectionStatus } from "./sharing";
+export const VERSION = "0.1.6";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";
@@ -53,8 +54,12 @@ export interface Snapshot {
   timers: TimerSlot[];
   capture: CaptureSnapshot;
   diagnosticsUntil: number;
+  sharing?: ConnectionStatus;
 }
 export interface Operations {
+  sharingRead: { input: null; output: Connection };
+  sharingSave: { input: Connection; output: ConnectionStatus };
+  sharingTest: { input: null; output: ConnectionStatus };
   removeTimer: { input: Slot; output: Snapshot };
   exportTimers: { input: ExportFormat; output: number };
   importTimers: { input: { text: string; commit: boolean }; output: { summary: ImportSummary; snapshot?: Snapshot } };
@@ -77,6 +82,8 @@ export function parseRequest(raw: unknown): Request {
   const r = raw as Request;
   if (typeof r.id !== "string" || !/^[a-z0-9-]{1,80}$/i.test(r.id)) throw new Error("Invalid request ID.");
   switch (r.method) {
+    case "sharingRead": case "sharingTest": if (r.input !== null) throw new Error("Invalid sharing request."); break;
+    case "sharingSave": return { ...r, input: parseConnection(r.input) };
     case "removeTimer": return { ...r, input: parseSlot(r.input) };
     case "exportTimers": if (!["text", "json", "compressed"].includes(r.input)) throw new Error("Invalid export format."); break;
     case "importTimers": if (!r.input || typeof r.input.text !== "string" || r.input.text.length > EXCHANGE_LIMIT || typeof r.input.commit !== "boolean") throw new Error("Invalid import request or size."); break;

@@ -10,3 +10,7 @@
 /.neu/
 neutralinojs.log
 *.tmp
+.env*
+!.env.integration.example
+/.convex/
+*secrets*.json

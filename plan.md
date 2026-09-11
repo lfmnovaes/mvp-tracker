@@ -416,12 +416,14 @@ Gate: two independent states exchange data repeatedly without duplicate/freshnes
 
 ### Step 6 — Convex backend and connection
 
-- [ ] Add Convex schema/functions/generated types and documented owner setup targeting a cloud development deployment with `npx convex dev --once`.
-- [ ] Implement key-checked Test/snapshot/sync/reset functions, indexed slots, revisions/deltas, transactional merges, attribution, reset generation, and bounded idempotency.
-- [ ] Implement client URL/key settings, secrets exclusions, sender display/fallback, initialization/version errors, and connection-generation protection.
-- [ ] Add convex-test/Vitest validation and a separate disposable deployment configuration for integration tests; keep the shared group deployment intact.
+- [x] Add Convex schema/functions/generated types and documented owner setup targeting a cloud development deployment with `npx convex dev --once`.
+- [x] Implement key-checked Test/snapshot/sync/reset functions, indexed slots, revisions/deltas, transactional merges, attribution, reset generation, and bounded idempotency.
+- [x] Implement client URL/key settings, secrets exclusions, sender display/fallback, initialization/version errors, and connection-generation protection.
+- [x] Add convex-test/Vitest validation and a separate disposable deployment configuration for integration tests; keep the shared group deployment intact.
 
 Gate: missing/wrong keys fail closed; valid candidates merge without clobbering unselected slots; repeated requests preserve attribution; no player needs npm or a deploy key. Test mocks and live checks are clearly distinguished. Commit/push.
+
+**Complete (0.1.6).** Convex schema/functions, authorization, initialization, transactional merge/reset, revision deltas and attribution are implemented. Settings now saves/tests a separate URL/key connection with cancellation and safe errors. TypeScript, 50 Bun tests and 6 Convex tests pass. See docs/step-6-verification.md and docs/convex-setup.md. Disposable integration is configured but not run; no live deployment was created or reset. Step 7 retains UI sync/reset coordination and idle expiry scheduling.
 
 ### Step 7 — Manual/automatic sync, reset, and expiry
 

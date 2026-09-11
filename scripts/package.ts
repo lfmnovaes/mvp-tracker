@@ -15,7 +15,7 @@ for (const file of ["README.md", "LICENSE.txt", "THIRD_PARTY_NOTICES.md", "depen
 await cp(join(root, "resources/licenses"), join(target, "licenses"), { recursive: true });
 const source = join(target, "source"); await mkdir(source, { recursive: true });
 // Corresponding source is carried with the unsigned portable artifact.
-for (const file of ["src", "native", "scripts", "tests", "docs", "licenses", ".gitignore", ".gitattributes", "package.json", "bun.lock", "tsconfig.json", "neutralino.config.json", "README.md", "LICENSE.txt", "THIRD_PARTY_NOTICES.md", "dependency-provenance.md", "plan.md"]) await cp(join(root, file), join(source, file), { recursive: true });
+for (const file of ["src", "native", "scripts", "tests", "docs", "licenses", "convex", "vitest.config.ts", ".env.integration.example", ".gitignore", ".gitattributes", "package.json", "bun.lock", "tsconfig.json", "neutralino.config.json", "README.md", "LICENSE.txt", "THIRD_PARTY_NOTICES.md", "dependency-provenance.md", "plan.md"]) await cp(join(root, file), join(source, file), { recursive: true });
 const zip = `${target}.zip`;
 const child = Bun.spawn(["powershell.exe", "-NoProfile", "-File", join(root, "scripts/zip.ps1"), "-Source", target, "-Destination", zip], { stdout: "inherit", stderr: "inherit", windowsHide: true });
 if (await child.exited) throw new Error("ZIP packaging failed.");

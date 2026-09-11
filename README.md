@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.5 adds clipboard export/import, local row deletion, 24-hour defaults and a compact layout with fixed filters and actions.** Convex sharing remains the next implementation step.
+Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.6 adds the Convex backend and Save/Test connection in Settings → Sharing.** Sync/Start and confirmed shared Reset become active in Step 7. See [owner setup](docs/convex-setup.md).
 
 Choose Text, JSON or Compressed and click Export to copy selected current observations. Search filters do not limit exports. Text contains only selected Dark Fortress kill times in 24-hour format, grouped by region/channel with UTC-3 headers. JSON and `MVPT1:` compressed strings preserve kill/gathered times, killer and observer. Empty exports leave the clipboard unchanged. Compression is not encryption.
 

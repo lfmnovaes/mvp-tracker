@@ -13,3 +13,5 @@ Step 3 bundles kar-mi's AGPL-3.0-only packages: @kar-mi/spirit-vale-tools-captur
 The capture adapter's ChannelList_T zero-based channel interpretation and connection admission handling follow spirit-vale-overlay's apps/launcher/src/desktop/capture-coordinator.ts at revision 4f1f8000bbdb19f7234aa9e73ddb89106fe3d389 (GNU AGPL v3). This implementation trims unrelated trackers, adds bounded transport replay suppression, requires explicit region/channel evidence, and separates live/cached identity.
 
 Build-only dependencies include @neutralinojs/neu (MIT), TypeScript (Apache-2.0), @types/bun (MIT), and the dependencies pinned in bun.lock. The build does not ship node_modules. See dependency-provenance.md for exact source references and later planned integrations.
+
+Step 6 bundles the Convex 1.45.0 JavaScript HTTP client (Apache-2.0); its license is included in the portable licenses directory. The Convex API/server bootstrap output is generated from that package's templates. Test-only packages are convex-test 0.0.57, Vitest 5.0.0 and @edge-runtime/vm 5.0.0, with exact transitive versions in bun.lock; they do not run in the portable application.

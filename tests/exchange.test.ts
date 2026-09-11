@@ -34,6 +34,16 @@ test("JSON/compressed round trip keeps UTF-8 evidence and two users converge wit
   expect(first[0]!.observation!.gatheredAt).toBe(a.gatheredAt);
 });
 
+test("server attribution survives JSON and compressed sharing without changing evidence identity", () => {
+  const original = observation("attributed"), attributed = { ...original, submission: { submittedByCharacter: "Forwarder", serverAcceptedAt: now } };
+  for (const format of ["json", "compressed"] as const) {
+    const decoded = decodeImport(exportTimers(slots([attributed]), all, now, format).text, now);
+    const merged = mergeObservations(slots([original]), decoded, now);
+    expect(merged[0]?.observation?.submission).toEqual(attributed.submission);
+    expect(merged[0]?.observation?.gatheredAt).toBe(original.gatheredAt);
+  }
+});
+
 test("preview does not mutate, counts disabled/expired/conflicts, and confirmation uses fresher local data", () => {
   const a = observation("a"), replacement = observation("z"); const current = slots([a]); const before = JSON.stringify(current);
   const pending = previewImport(current, [replacement, observation("disabled", { region: "eu" }), observation("expired", { channel: 2, diedAt: now - 151 * 60000 })], defaultSelection(), now);

@@ -26,7 +26,7 @@ const csc = join(process.env.WINDIR ?? "C:/Windows", "Microsoft.NET/Framework64/
 await run([csc, "/nologo", "/optimize+", "/platform:x64", "/target:exe", `/out:${join(root, "extensions/bin/mvp-shell.exe")}`, `/win32icon:${join(root, "extensions/bin/icon.ico")}`, "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll", "/reference:System.Web.Extensions.dll", join(root, "native/ShellHost.cs")]);
 // Include the bundled frontend dependency licenses, plus native runtime notices.
 await mkdir("resources/licenses", { recursive: true });
-for (const name of ["preact", "@neutralinojs/lib"]) {
+for (const name of ["preact", "@neutralinojs/lib", "convex"]) {
   const folder = join("node_modules", name);
   const license = new Bun.Glob("{LICENSE,LICENSE.*,license,license.*}");
   for await (const file of license.scan(folder)) await copyFile(join(folder, file), join("resources/licenses", `${name.replaceAll("/", "-")}-${file}`));

@@ -14,9 +14,11 @@ Verified on 2026-09-10 against the public npm registry and upstream Git refs.
 | Preact | 10.29.8 | MIT | Tracker and Settings UI |
 | TypeScript | 7.0.2 | Apache-2.0 | Type checking |
 | Bun | 1.4.2 | MIT (bundled components have additional notices) | Build tools and portable backend runtime |
-| Convex | 1.45.0 | Apache-2.0 | Verified; install/reverify in Step 6 |
+| Convex | 1.45.0 | Apache-2.0 | Installed and pinned in Step 6; HTTP client and owner CLI |
 
 No combat, rewards, overlay, launcher or game assets will be copied. The capture packages' compatible versions are identified but will not be installed before their implementation step. Pin shell dependencies exactly and commit the Bun lockfile in Step 1. Keep upstream transport attribution in its adapted source, distribute AGPL license text, and include dependency notices and source/build instructions in packages.
+
+Step 6 (0.1.6): installed registry releases Convex 1.45.0, convex-test 0.0.57, Vitest 5.0.0 and @edge-runtime/vm 5.0.0 with exact versions/integrities in bun.lock. Verified the installed HTTP client supports per-instance fetch and logger:false. The app adds redirect/origin/timeout controls. Generated API/server bootstrap files use the pinned CLI templates; schema-derived types are refreshed by normal owner deployment. Tests use the documented edge-runtime environment. No deployment or package-install login credentials are stored in source.
 
 The upstream desktop shell already uses Neutralino 6.9.0, neu 11.7.2, Bun and Preact. Its existing extension handshake is the compatibility reference. Runtime package smoke testing belongs to Step 1; packet behavior belongs to Step 3.
 
