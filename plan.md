@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 10 September 2026 with the user's decisions. The original 18 questions are resolved and removed. Steps 0–2 are complete (current app version 0.1.2). Convex replaces Google Sheets entirely. Shared-group-key access is approved; no product questions remain open. A concrete Convex deployment URL/key will be needed later for live testing.
+Updated 11 September 2026 with the latest user decisions. Steps 0–7 are complete (app version 0.1.7). Convex replaces Google Sheets entirely. Group key and character name are optional. The supplied deployment was checked read-only and has no MVP Tracker functions yet; owner deployment and real group testing remain pending. No product questions remain open.
 
 ## 1. Agreed scope
 
@@ -20,7 +20,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 | Respawn | User-confirmed game rule: grave present means boss has not respawned; respawn occurs 60–90 minutes after death, for all supported bosses. |
 | Expiry | At +90 minutes mark Spawned. Keep the kill information until +150 minutes, then discard its values and retain the boss slot labeled Outdated. |
 | Edits | Add and Edit set kill date/time; confirmation automatically stamps the information time from the Windows clock. Manual and automatic evidence may replace one another. |
-| Sharing | Configurable Convex cloud development URL plus shared group key, empty initially. Transactional manual sync and optional timed auto-sync: 10, 20, or 30 seconds; 1, 2, or 5 minutes. |
+| Sharing | Configurable Convex cloud development URL plus optional shared group key, empty initially. Transactional manual sync and optional timed auto-sync: 10, 20, or 30 seconds; 1, 2, or 5 minutes. |
 | Reset | Confirmed Convex reset mutation clears tracker observations and advances dataset generation, retaining schema/catalog labels. Owner deploys functions separately with `npx convex dev --once`; this command does not erase records. |
 | Text export | Selected Dark Fortress bosses only; kill time `HH:mm`; no `?` or other uncertainty markers; headers such as `SA UTC-3`. |
 | JSON/compressed export | All selected supported bosses/regions, regardless of temporary search; include killer, observer/sender attribution, and merge metadata. |
@@ -35,7 +35,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 
 Google Sheets, its access questions, table-formatting requirements, and future OAuth/coordinator backlog are removed. Use a shared **cloud development deployment** of Convex for the private group, not a separate local database per player. Every player connects to the same development URL and the owner deploys the matching MVP Tracker functions/schema first.
 
-The user approved **one shared group key** alongside the URL, with no individual sign-in. Validate that key in every exposed tracker query/mutation, including Test, Sync, and Reset. All key holders have the same group permissions, including confirmed reset; viewer/admin roles are deferred. Character names are self-reported game attribution, not credentials. Fail closed if the server key is missing; never ship deploy/admin keys to players. [Function authorization](https://docs.convex.dev/auth/functions-auth).
+The latest user decision makes the shared group key optional, with no individual sign-in. With MVP_GROUP_KEY absent or empty, URL-only access is allowed. When configured, validate the key in every exposed tracker query/mutation, including Test, initialization, Sync and Reset; malformed server keys fail closed. All authorized callers share the same permissions, including confirmed reset. Character names are optional self-reported attribution, not credentials. Never ship deploy/admin keys to players. [Function authorization](https://docs.convex.dev/auth/functions-auth).
 
 Owner setup and player actions are different: `npx convex dev --once` pushes code/schema to a configured dev deployment and exits; application Reset calls a deployed mutation to clear tracker data. The portable app does not require npm/Node, repository source, or Convex deployment credentials. An empty Convex project URL is insufficient until the functions are installed. [CLI reference](https://docs.convex.dev/cli/reference/dev).
 
@@ -148,7 +148,7 @@ Each row has Edit for the kill date/time and optional killer. Keep boss/region/c
 
 - **General:** AM/PM versus 24-hour format, disabled timezone dropdown showing America/Sao_Paulo, UI scale, remembered window bounds, Start minimized (off initially), optional/rebindable F7/F8/F9 hotkeys, Exit MVP Tracker.
 - **Tracking:** scrollable Boss/Level/Map/Track table with All/Endgame/None, plus region checkboxes defaulting to SA and NA. Apply changes to local display/ingestion/export immediately.
-- **Sharing:** editable Convex URL and masked shared group key (empty initially), Test connection, deployment/schema status, Sharing as character (detected/cached/manual fallback), auto-sync interval preference, last sync summary, setup help, and Reset tracker data. No Google or individual account controls.
+- **Sharing:** editable Convex URL and masked optional shared group key (empty initially), Test connection, deployment/schema status, Sharing as character (detected/cached/manual fallback), auto-sync interval preference, last sync summary, setup help, and Reset tracker data. No Google or individual account controls.
 - **Capture/Diagnostics:** Auto/manual network adapter, restart capture, Npcap status/help, app/tool versions, Open logs, Export diagnostics, bounded diagnostic mode.
 
 No launch-with-Windows setting, Portuguese localization, notifications/sounds, overlay hotkeys, or unrelated log/session controls. Retain manual adapter troubleshooting and UI scale because they directly support this application.
@@ -218,9 +218,9 @@ Test deterministic/idempotent/commutative ordinary merges over valid observation
 
 Add `convex/` to the application repository with schema, validated queries/mutations, generated API types, and setup instructions. Pin the `convex` package and CLI through the project lockfile. Configure an explicitly selected **cloud dev deployment** under the owner's Convex project, then run `npx convex dev --once` from the source checkout. Re-running deployment must preserve existing timer data. Current CLI supports selecting local/cloud during configuration; a noninteractive unconfigured invocation can otherwise provision a local deployment, which would not share data across players. [Dev configuration](https://docs.convex.dev/cli/reference/dev), [noninteractive deployment behavior](https://docs.convex.dev/cli/agent-mode).
 
-Owner-only initialization seeds catalog/metadata without wiping existing observations; provide a separate internal init command/function and an explicit owner reset command if useful. Store the shared group key (or a compatible deterministic hash) in deployment environment configuration; never in tracked source. Generate the actual key only during deployment setup. Keep `.env.local`, deploy keys, login state, user URLs, and secret files ignored. Use a persistent cloud dev deployment for the group and a separate disposable local/dev deployment for destructive tests. No production deployment or paid plan is requested.
+Authorized idempotent initialization creates dataset metadata without wiping observations. Save connection persists locally immediately and checks/initializes a compatible deployed backend in the background; first Sync can initialize too. Both Save connection and Save settings persist the Sharing fields. The optional group key belongs in deployment environment configuration, never tracked source. Keep .env.local, deployment credentials, login state and local secrets ignored. Use a cloud dev deployment for the group and a separate disposable deployment for destructive tests. No production deployment or paid plan is requested.
 
-Players paste the deployment URL, normally `https://<deployment>.convex.cloud`, and the shared group key into Settings. Do not accept dashboard URLs or mistake the `.convex.site` HTTP-action origin for the client deployment URL. Validate HTTPS/origin before sending the key and do not follow a redirect to an unrelated host with it. Settings begin empty. Changing URL/key stops auto-sync, invalidates cached connection state, and discards old in-flight responses using a connection generation; no requests may drift to a different configured group. Local timers remain available.
+Players paste the deployment URL, normally `https://<deployment>.convex.cloud`, and an optional shared group key into Settings. Do not accept dashboard URLs or mistake the `.convex.site` HTTP-action origin for the client deployment URL. Validate HTTPS/origin before sending the key and do not follow a redirect to an unrelated host with it. Settings begin empty. Changing URL/key stops auto-sync, invalidates cached connection state, and discards old in-flight responses using a connection generation; no requests may drift to a different configured group. Local timers remain available.
 
 Use the generated API with `ConvexHttpClient` in the Bun backend for interval-driven calls; the documented client works in runtimes with fetch. No permanent realtime subscription is required in version 1, so Start/Stop genuinely controls background traffic. A future subscription can be assessed separately. [JavaScript clients](https://docs.convex.dev/client/javascript).
 
@@ -244,7 +244,7 @@ Upstream already supplies the local player name through `capture.subscribeCharac
 
 Each outbound batch includes `sentByCharacter` captured when that request begins. Each accepted observation stores `submittedByCharacter` and `serverAcceptedAt`. Preserve optional `observedByCharacter` with the original captured/manual observation, including across JSON exchange. These differ from `killedBy`: the killer, observer, and person forwarding data may all be different. Identical observations resent by another client do not rewrite accepted attribution or bump revision merely to record routine polling. No unbounded “who synced” audit table.
 
-Display Sharing as with the live name when known. Keep a clearly marked last-detected cached name for game-offline sharing, and permit an explicit manual fallback name when no live name has ever been captured. Never silently invent a character. Without any usable name, allow local work and an authorized pull-only snapshot, but hold uploads and show “Character name needed to upload.” Reevaluate on character switch/disconnect; snapshot the sender once per request so an in-flight upload is not relabeled. Name strings are bounded/validated; they are not account authentication. Include attribution in JSON/compressed output and row details while keeping compact text unchanged.
+Display Sharing as with the live name, clearly marked cached name, or optional manual fallback. Without a usable name, upload normally with sentByCharacter/submittedByCharacter null and display Anonymous. Never invent a character. Snapshot the sender once per request so a character switch cannot relabel an in-flight upload. Names are bounded/validated attribution, not authentication. Include attribution in JSON/compressed output and row details; compact text is unchanged.
 
 ### Transactional merge protocol
 
@@ -276,7 +276,7 @@ Implement the scheduler with one replaceable timeout and explicit states: Stoppe
 
 ### Reset and physical expiry cleanup
 
-Settings Reset tracker data displays the destination deployment/dataset and confirms clearing **all MVP Tracker observation fields**, including those from other players. It pauses scheduling and drains the current request before calling `tracker.reset`. Reset is a mutation that clears timer payloads, retains catalog/slot labels, sets reset date, advances generation/revision, and records its idempotency receipt. It does not redeploy code, delete schema/indexes, rotate the group key, or erase unrelated application tables.
+Settings Reset tracker data displays the destination deployment/dataset and confirms clearing **all MVP Tracker observation fields**, including those from other players. It pauses scheduling and drains the current request before calling `timers.reset`. Reset is a mutation that clears timer payloads, retains catalog/slot labels, sets reset date, advances generation/revision, and records its idempotency receipt. It does not redeploy code, delete schema/indexes, rotate the group key, or erase unrelated application tables.
 
 Every sync transaction reads generation, so an old-generation request cannot repopulate the dataset after Reset. On a generation change, discard old upload eligibility and refresh local state; do not keep an old kill in the active table and then re-upload it as new. Newly received foreign clipboard records retain their original evidence time and must pass the reset cutoff. A deliberate new manual entry or newly observed grave can repopulate normally. After a user's Reset, auto-sync stays stopped until Start, so clearing the database is visible and predictable.
 
@@ -355,7 +355,7 @@ After every completed step: run its relevant checks, update progress in this fil
 ### Step 0 — Record decisions and prepare the repository
 
 - [x] Replace the proposal with this `plan.md` and remove answered questions/the obsolete file.
-- [x] Resolve shared access: Convex development deployment plus a shared group key; Google integration removed.
+- [x] Resolve shared access: Convex development deployment plus an optional shared group key; Google integration removed.
 - [x] Configure repository-local Git author as Luis Fernando with the supplied email. No global Git identity changes.
 - [x] Prepare the revised Convex/character/auto-sync plan for this documentation step. Commit/push message: `docs: plan Convex sync and character attribution`.
 - [x] Reverify published dependencies and upstream compatibility before copying code; record licenses/provenance in `dependency-provenance.md` (2026-09-10).
@@ -427,14 +427,18 @@ Gate: missing/wrong keys fail closed; valid candidates merge without clobbering 
 
 ### Step 7 — Manual/automatic sync, reset, and expiry
 
-- [ ] Implement one shared manual/automatic sync coordinator, six intervals (10s/20s/30s/1m/2m/5m), Start/Stop, next-sync display, coalescing, live interval changes, backoff, sleep/reconnect, and safe shutdown.
-- [ ] Implement atomic delta application/acknowledgements, capture/edit-during-sync handling, no-op polling optimization, and bounded reset receipts.
-- [ ] Add confirmed reset mutation and next-expiry scheduled cleanup; generation checks protect new data against old requests/jobs.
-- [ ] Verify sender snapshots, no fabricated identity, wrong-key pause, and reset leaving auto-sync stopped.
+- [x] Implement one shared manual/automatic sync coordinator, six intervals (10s/20s/30s/1m/2m/5m), Start/Stop, next-sync display, coalescing, live interval changes, backoff, sleep/reconnect, and safe shutdown.
+- [x] Implement atomic delta application/acknowledgements, capture/edit-during-sync handling, no-op polling optimization, and bounded reset receipts.
+- [x] Add confirmed reset mutation and next-expiry scheduled cleanup; generation checks protect new data against old requests/jobs.
+- [x] Verify sender snapshots, no fabricated identity, wrong-key pause, and reset leaving auto-sync stopped.
 
 Gate: deterministic scheduler/backend tests pass; manual sync can run alongside automatic mode without overlapping calls; stale-generation sync/reset retries cannot erase or resurrect new observations. Measure traffic for 42 and 594 slots. Commit/push.
 
+**Complete (0.1.7).** Fixed request-validation replies, optional key/name, persistent Sharing saves and log controls. Added serialized manual/automatic sync, durable delta acknowledgements, reset recovery and scheduled server expiry. TypeScript, 61 Bun tests and 10 Convex tests pass. Full/idle payloads measured for 42 and 594 slots. See docs/step-7-verification.md. Live cloud writes, desktop/log-folder launch and multiplayer validation remain with the user in Step 8.
+
 ### Step 8 — Windows and private-group validation
+
+- [ ] Improve sanitized logs with operation/method, request correlation ID, elapsed time, app/component version/state and bounded error categories. Keep rotation/retention and exclude keys, names, private URLs, packet/clipboard data and complete function arguments. Add useful connection failure context without raw remote exceptions; verify Open logs and Clear logs on Windows.
 
 - [ ] Run the matrix below; fix discovered failures and record exact tested Windows/runtime versions.
 - [ ] Have the user manually test the real shared Convex development URL/key, sender names, multiple players, interval changes, Start/Stop, and reset; exercise actual transaction races on a disposable deployment.
@@ -469,7 +473,7 @@ Use Bun tests for the core/desktop and synthetic capture fixtures, plus convex-t
 | Text | Kill time rather than respawn time, 24-hour format, `UTC-3` headers, exact abbreviations, no uncertainty symbols, only selected Dark Fortress bosses, chronological midnight ordering, empty output. |
 | JSON/compression | Killer retained, UTF-8 round trip, immutable gathered timestamps, no credentials, invalid base64/gzip/version/size/nesting/channels, decompression limit, rejected text import, cancel/no mutation. |
 | Convex connection | Empty/invalid URL/key, wrong origin, missing functions/init, schema version, group-key checks in every public endpoint, key rotation, URL/key change during request, no credentials in exports/logs. |
-| Attribution | Live local character vs inspected player; cached/manual fallback; no name holds uploads; switch during request; killer vs observer vs sender; imported provenance retained; duplicates do not churn submitter metadata. |
+| Attribution | Live local character vs inspected player; cached/manual fallback; no name uploads with null attribution; switch during request; killer vs observer vs sender; imported provenance retained; duplicates do not churn submitter metadata. |
 | Convex mutations | Indexed upserts preserve one slot; validation before commit, selected-only uploads preserve other slots, monotonic revisions, unchanged response without writes/full scan, full snapshot/delta recovery, physical expiry clearing. |
 | Scheduler | All six intervals (10s/20s/30s/1m/2m/5m); no 10m option; default stopped; Start immediate sync; manual F9 during auto/active requests; at most one follow-up; live interval change while waiting/syncing/backoff; Stop prevents future retry; tray continuation; no restart/sleep backlog. |
 | Concurrency | Two/many writers same/different slots, transactional latest-evidence merge, response loss/idempotent retry, local observations arriving mid-sync, watermark atomicity, key errors/quota/offline backoff. |

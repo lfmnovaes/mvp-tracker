@@ -10,6 +10,7 @@ import { emptyCapture } from "../shared/capture";
 import { ManualDialog } from "./manual-dialog";
 import { TimerRowView } from "./timer-row";
 import { ImportDialog } from "./import-dialog";
+import type { Connection } from "../shared/sharing";
 import { SharingSettings } from "./sharing-settings";
 import type { ExportFormat } from "../shared/exchange";
 
@@ -35,8 +36,10 @@ function App() {
   const [exporting, setExporting] = useState(false);
   const [focusedOrder, setFocusedOrder] = useState<string[] | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const [connectionDraft, setConnectionDraft] = useState<Connection | null>(null);
+  const [connectionSaved, setConnectionSaved] = useState<Connection | null>(null);
   const openSettings = () => { setDraft(snapshot?.settings ?? defaults()); setSettingsOpen(true); setMessage(""); };
-  const action = (name: "add" | "sync") => { if (name === "add") { setSettingsOpen(false); setManual(current => current ?? {}); } else setMessage("Sharing is not available in this version yet."); };
+  const action = (name: "add" | "sync") => { if (name === "add") { setSettingsOpen(false); setManual(current => current ?? {}); } else void call("syncControl", "now").catch(e => setMessage(e.message)); };
   useEffect(() => { const tick = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(tick); }, []);
   useEffect(() => {
     let disposed = false;
@@ -63,8 +66,10 @@ function App() {
     return () => { disposed = true; off(); clearInterval(heartbeat); };
   }, []);
   useEffect(() => {
-    if (settingsOpen) { setDraft(snapshot?.settings ?? defaults()); dialog.current?.showModal(); }
+    let disposed = false;
+    if (settingsOpen) { setConnectionDraft(null); setConnectionSaved(null); void call("sharingRead", null).then(value => { if (!disposed) { setConnectionDraft(value); setConnectionSaved(value); } }).catch(() => { if (!disposed) setMessage("Could not load Sharing settings."); }); setDraft(snapshot?.settings ?? defaults()); dialog.current?.showModal(); }
     else dialog.current?.close();
+    return () => { disposed = true; };
   }, [settingsOpen]);
   const shell = async (command: "hide" | "minimize" | "exit") => {
     try { if (!snapshot && command === "exit") await emergencyExit(); else await call("shell", command); }
@@ -72,7 +77,7 @@ function App() {
   };
   const save = async () => {
     setSaving(true); setMessage("");
-    try { const checked = parseSettings(draft); setSnapshot(await call("saveSettings", checked)); setMessage("Settings saved."); }
+    try { const checked = parseSettings(draft); if (connectionDraft && JSON.stringify(connectionDraft) !== JSON.stringify(connectionSaved)) { await call("sharingSave", connectionDraft); setConnectionSaved(connectionDraft); } setSnapshot(await call("saveSettings", checked)); setMessage("Settings saved."); }
     catch (e) { setMessage((e as Error).message); }
     finally { setSaving(false); }
   };
@@ -93,7 +98,7 @@ function App() {
     try { await call("captureRestart", null); setMessage("Retrying capture and refreshing adapters…"); }
     catch (e) { setMessage((e as Error).message); }
   };
-  const diagnosticsAction = async (input: "open" | "copy" | "start" | "stop") => {
+  const diagnosticsAction = async (input: "open" | "clear" | "copy" | "start" | "stop") => {
     try { setMessage(await call("diagnostics", input)); } catch (e) { setMessage((e as Error).message); }
   };
   const exportClipboard = async () => {
@@ -128,9 +133,9 @@ function App() {
 
       </section>
 
-      {message && !settingsOpen && <div class="notice" role="status">{message}<button aria-label="Dismiss message" onClick={() => setMessage("")}>×</button></div>}
+      {(message || snapshot?.sync?.phase === "paused" || snapshot?.sync?.phase === "backoff") && !settingsOpen && <div class="notice" role="status">{message || snapshot?.sync?.message}<button aria-label="Dismiss message" onClick={() => setMessage("")}>×</button></div>}
     </div>
-    <footer class="footer"><div class="exchange"><button class="primary" disabled={!connected || noneSelected} onClick={() => action("add")}>＋ Add manually</button><select aria-label="Export format" value={exportFormat} onChange={e => setExportFormat(e.currentTarget.value as ExportFormat)}><option value="text">Text</option><option value="json">JSON</option><option value="compressed">Compressed</option></select><button disabled={!connected || exporting} onClick={() => void exportClipboard()}>{exporting ? "Copying…" : "Export"}</button><button disabled={!connected} onClick={() => setImporting(true)}>Import</button></div><div class="sync"><span class="subtle">{snapshot?.sharing?.state === "ready" ? "Connection ready" : snapshot?.sharing?.configured ? "Sharing configured" : "Sharing not configured"}</span><select aria-label="Auto-sync interval" disabled value="60"><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select><button disabled>Start</button><button disabled title="Convex sharing is coming soon">↻ Sync</button></div></footer>
+    <footer class="footer"><div class="exchange"><button class="primary" disabled={!connected || noneSelected} onClick={() => action("add")}>＋ Add manually</button><select aria-label="Export format" value={exportFormat} onChange={e => setExportFormat(e.currentTarget.value as ExportFormat)}><option value="text">Text</option><option value="json">JSON</option><option value="compressed">Compressed</option></select><button disabled={!connected || exporting} onClick={() => void exportClipboard()}>{exporting ? "Copying…" : "Export"}</button><button disabled={!connected} onClick={() => setImporting(true)}>Import</button></div><div class="sync"><span class="sync-summary" title={snapshot?.sync?.message}>{snapshot?.sync?.queued ? "Sync queued" : snapshot?.sync?.busy ? "Syncing…" : snapshot?.sync?.nextAt ? `Next in ${Math.max(0, Math.ceil((snapshot.sync.nextAt - now) / 1000))}s` : snapshot?.sync?.phase === "paused" ? "Sync paused" : "Stopped"}{snapshot?.sync?.lastAt ? ` · Last ${formatClock(snapshot.sync.lastAt, snapshot.settings.clock24, true)}` : ""}</span><select aria-label="Auto-sync interval" value={snapshot?.settings.syncInterval ?? 60} onChange={e => void call("syncInterval", Number(e.currentTarget.value)).then(setSnapshot).catch(e => setMessage(e.message))}><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select><button disabled={!connected || !snapshot?.sharing?.configured || snapshot?.sync?.phase === "resetting"} onClick={() => void call("syncControl", snapshot?.sync?.running ? "stop" : "start").catch(e => setMessage(e.message))}>{snapshot?.sync?.running ? "Stop" : "Start"}</button><button disabled={!connected || !snapshot?.sharing?.configured || snapshot?.sync?.phase === "resetting"} onClick={() => action("sync")}>↻ Sync</button></div></footer>
     <div class="bottomline">America/Sao_Paulo <span>UTC−3</span><span class="capture-identity">{health.identity.name ? `${health.identity.name} · ${health.identity.source === "live" ? "Live character" : health.identity.source === "cached" ? "Cached character" : "Manual name"}` : "Character not detected"}{health.region && health.channel ? ` · ${health.region.toUpperCase()} Ch${health.channel}` : ""}</span></div>
     <dialog ref={dialog} onCancel={() => setSettingsOpen(false)} onClose={() => setSettingsOpen(false)} aria-labelledby="settings-title">
       <div class="settings-header"><div><span class="eyebrow">MVP TRACKER</span><h2 id="settings-title">Settings</h2></div><button aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
@@ -150,7 +155,7 @@ function App() {
           {tab === "Tracking" && <><h3>Bosses to track</h3><div class="catalog-presets">{(["all", "endgame", "none"] as const).map(preset => <button onClick={() => setDraft({ ...draft, tracking: { ...draft.tracking, bossIds: bossPreset(preset) } })}>{preset === "all" ? "All" : preset === "endgame" ? "Endgame" : "None"}</button>)}<span>{draft.tracking.bossIds.length} / {BOSSES.length}</span></div>
             <div class="catalog-list"><table><thead><tr><th>Name</th><th>Level</th><th>Map</th><th>Track</th></tr></thead><tbody>{BOSSES.map(b => <tr key={b.id}><td>{b.name}</td><td>{b.level}</td><td>{b.map}</td><td><input aria-label={`Track ${b.name}`} type="checkbox" checked={draft.tracking.bossIds.includes(b.id)} onChange={e => setDraft({ ...draft, tracking: { ...draft.tracking, bossIds: e.currentTarget.checked ? [...draft.tracking.bossIds, b.id] : draft.tracking.bossIds.filter(id => id !== b.id) } })}/></td></tr>)}</tbody></table></div>
             <h3>Regions</h3><div class="region-checks">{REGIONS.map(region => <label><input type="checkbox" checked={draft.tracking.regions.includes(region)} onChange={e => setDraft({ ...draft, tracking: { ...draft.tracking, regions: e.currentTarget.checked ? [...draft.tracking.regions, region] : draft.tracking.regions.filter(r => r !== region) } })}/>{region.toUpperCase()}</label>)}</div><p class="help">Channels 1–3 are supported in every region. Save applies these preferences. Unchecking an option hides its existing timers; they remain stored until expiry.</p></>}
-          {tab === "Sharing" && <SharingSettings status={snapshot?.sharing} character={health.identity.name ? `${health.identity.name} · ${health.identity.source === "live" ? "Live character" : health.identity.source === "cached" ? "Cached character" : "Manual name"}` : ""}/>}
+          {tab === "Sharing" && <SharingSettings draft={connectionDraft} onDraft={setConnectionDraft} saved={connectionSaved} onSaved={setConnectionSaved} sync={snapshot?.sync} status={snapshot?.sharing} character={health.identity.name ? `${health.identity.name} · ${health.identity.source === "live" ? "Live character" : health.identity.source === "cached" ? "Cached character" : "Manual name"}` : ""}/>}
           {tab === "Capture & diagnostics" && <><h3>Capture</h3><p role="status">{health.detail}</p>
             <label class="field">Network adapter<select value={draft.capture.deviceName} onChange={e => setDraft({ ...draft, capture: { ...draft.capture, deviceName: e.currentTarget.value } })}><option value="">Automatic (recommended)</option>{draft.capture.deviceName && !health.devices.some(d => d.name === draft.capture.deviceName) && <option value={draft.capture.deviceName}>Saved adapter · unavailable</option>}{health.devices.map(d => <option key={d.name} value={d.name}>{d.label}</option>)}</select><small>Save applies the adapter choice. Retry refreshes the adapter list.</small></label>
             <button disabled={!snapshot || health.state === "starting"} onClick={() => void retryCapture()}>Retry capture</button>
@@ -159,7 +164,7 @@ function App() {
             <label class="field">Manual character name<input maxLength={80} value={draft.capture.manualCharacter} placeholder="Optional fallback for sharing" onInput={e => setDraft({ ...draft, capture: { ...draft.capture, manualCharacter: e.currentTarget.value } })}/><small>Used for sharing when neither a live nor a cached name is available. Live detection takes priority. This does not change the killer or original observer on a timer.</small></label>
             <h3>Application health</h3><dl><dt>Version</dt><dd>{VERSION} · Windows 11 x64</dd><dt>Backend</dt><dd>{snapshot ? "Connected" : "Unavailable"}</dd><dt>System tray</dt><dd>{snapshot?.trayReady ? "Ready" : "Unavailable"}</dd><dt>Portable storage</dt><dd>{snapshot?.storageWritable ? "Writable" : "Unavailable / read-only"}</dd><dt>Capture</dt><dd>{captureLabel} · {gameLabel}</dd><dt>Adapter in use</dt><dd>{health.adapter ?? "None"}</dd><dt>Last game packet</dt><dd>{health.lastPacketAt ? formatTimestamp(health.lastPacketAt, snapshot?.settings.clock24) : "None this capture session"}</dd><dt>Retry</dt><dd>{health.retryAt ? formatClock(health.retryAt, snapshot?.settings.clock24) : "Not scheduled"}</dd><dt>Awaiting context</dt><dd>{health.unresolved}</dd><dt>Skipped observations</dt><dd>{health.skipped}</dd></dl>
             <p class="help">Early graves wait up to 10 seconds for channel/region context on the same connection. Unresolved or inconsistent observations are then skipped. Once the game context is detected, revisit the gravestone to collect fresh evidence. A missing packet or object despawn never counts as proof of a boss respawn.</p>
-            <h3>Essential logs only</h3><p class="help">Capture tools 3.0.2 · Character tools 0.6.1. Logs are stored in the logs folder beside the app. Up to five 2 MiB files are retained for seven days. Packet data, character names, credentials and clipboard contents are never logged.</p><div class="diagnostic-actions"><button onClick={() => void diagnosticsAction("open")}>Open logs</button><button onClick={() => void diagnosticsAction("copy")}>Copy diagnostics</button><button onClick={() => void diagnosticsAction(snapshot?.diagnosticsUntil && snapshot.diagnosticsUntil > now ? "stop" : "start")}>{snapshot?.diagnosticsUntil && snapshot.diagnosticsUntil > now ? "Stop health sampling" : "Sample health for 5 minutes"}</button></div><p class="help">Diagnostics includes versions, anonymous health counts and recent event codes. Sampling stops automatically and stays in memory until you copy it. Nothing is uploaded.</p><p class="help">Preferences live in data/settings.json beside the app. Extract the entire ZIP into a folder you can write to.</p></>}
+            <h3>Essential logs only</h3><p class="help">Capture tools 3.0.2 · Character tools 0.6.1. Logs are stored in the logs folder beside the app. Up to five 2 MiB files are retained for seven days. Packet data, character names, credentials and clipboard contents are never logged.</p><div class="diagnostic-actions"><button onClick={() => void diagnosticsAction("open")}>Open logs</button><button onClick={() => void diagnosticsAction("copy")}>Copy diagnostics</button><button onClick={() => void diagnosticsAction("clear")}>Clear logs</button><button onClick={() => void diagnosticsAction(snapshot?.diagnosticsUntil && snapshot.diagnosticsUntil > now ? "stop" : "start")}>{snapshot?.diagnosticsUntil && snapshot.diagnosticsUntil > now ? "Stop health sampling" : "Sample health for 5 minutes"}</button></div><p class="help">Diagnostics includes versions, anonymous health counts and recent event codes. Sampling stops automatically and stays in memory until you copy it. Nothing is uploaded.</p><p class="help">Preferences live in data/settings.json beside the app. Extract the entire ZIP into a folder you can write to.</p></>}
         </section>
       </div>
       <div class="settings-footer"><button class="exit" onClick={() => void shell("exit")}>Exit MVP Tracker</button><span role="status">{message}</span><button class="primary" disabled={saving || !snapshot?.storageWritable} onClick={() => void save()}>{saving ? "Saving…" : "Save settings"}</button></div>

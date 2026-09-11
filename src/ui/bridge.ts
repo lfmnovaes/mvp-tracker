@@ -21,7 +21,9 @@ export async function call<K extends Method>(method: K, input: Operations[K]["in
   await connect();
   const id = crypto.randomUUID();
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error("The backend is not responding. Restart MVP Tracker if this continues.")); }, 12_000);
+    // Reset drains any active sync and can recover a changed generation before replying.
+    const timeout = method === "sharingReset" ? 60_000 : 12_000;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error("The backend is not responding. Restart MVP Tracker if this continues.")); }, timeout);
     pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
     void Neutralino.extensions.dispatch(EXTENSION, REQUEST, { id, method, input }).catch(() => {
       clearTimeout(timer); pending.delete(id); reject(new Error("The backend connection is unavailable."));

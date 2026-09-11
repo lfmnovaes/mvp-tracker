@@ -2,6 +2,7 @@ import { resolve, join } from "node:path";
 import { NeutralinoClient } from "./neutralino-client";
 import { SettingsStore } from "./storage";
 import { SharingConnection } from "./sharing";
+import { SyncCoordinator } from "./sync-coordinator";
 import { Logger } from "./logger";
 import { TimerStore } from "./timer-store";
 import { CaptureService } from "./capture-service";
@@ -9,7 +10,7 @@ import { emptyCapture } from "../shared/capture";
 import { Diagnostics } from "./diagnostics";
 import { decodeImport, exportTimers, previewImport } from "./exchange";
 import { compareEvidence, parseObservation, slotKey, type Observation } from "../domain/timers";
-import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, type Snapshot, type Update, type Action } from "../shared/protocol";
+import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, requestId, type Snapshot, type Update, type Action } from "../shared/protocol";
 
 const root = resolve(import.meta.dir, "../..");
 const native = await NeutralinoClient.fromStdin();
@@ -22,6 +23,7 @@ let logger: Logger;
 let timers: TimerStore;
 let capture: CaptureService | undefined;
 let sharing: SharingConnection;
+let sync: SyncCoordinator;
 const diagnostics = new Diagnostics();
 const pendingObservations = new Map<string, Observation>();
 function flushObservations() {
@@ -48,6 +50,7 @@ async function showFallback() {
   await native.call("window.focus");
 }
 async function shellAction(action: string) {
+  if (action === "sync") { sync?.request(); return; }
   if (action === "exit") { void exitApp(); return; }
   if (action === "toggle") action = await native.call<boolean>("window.isVisible") && !await native.call<boolean>("window.isMinimized") ? "hide" : "show";
   if (action === "hide") {
@@ -62,6 +65,7 @@ async function shellAction(action: string) {
 }
 async function exitApp() {
   if (exiting) return; exiting = true;
+  sync?.close();
   sharing?.close();
   clearInterval(cleanupTimer); await capture?.stop(); flushObservations(); timers?.close();
   logger?.write("stopped");
@@ -74,6 +78,7 @@ async function exitApp() {
 }
 native.onClose(() => {
   exiting = true;
+  sync?.close();
   sharing?.close();
   clearInterval(cleanupTimer); void capture?.stop(); flushObservations(); timers?.close();
   try { send("exit"); } catch { }
@@ -94,26 +99,35 @@ native.on("windowClose", () => {
 let queue = Promise.resolve();
 native.on(REQUEST, raw => {
   // Network tests must not hold the local write queue: connection changes and Exit can cancel them.
-  if ((raw as { method?: string })?.method === "sharingTest") {
+  if (["sharingTest", "sharingReset"].includes((raw as { method: string })?.method)) {
     void (async () => {
-      let id: string | undefined;
+      let id = requestId(raw);
       try {
         const request = parseRequest(raw); id = request.id;
         if (!ready || exiting) throw new Error();
-        const result = await sharing.test();
+        const result = request.method === "sharingReset" ? (await sync.reset(request.input), sync.snapshot()) : await sharing.test();
         await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
-      } catch { if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: "Sharing: connection test unavailable. Retry after startup." } }).catch(() => {}); }
+      } catch (e) { if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: e instanceof Error && e.message.startsWith("Sharing:") ? e.message : "Sharing: connection action unavailable. Retry after startup." } }).catch(() => {}); }
     })(); return;
   }
   queue = queue.then(async () => {
-    let id: string | undefined;
+    let id = requestId(raw);
     try {
       const request = parseRequest(raw); id = request.id;
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
       let result: unknown = null;
       switch (request.method) {
         case "sharingRead": result = sharing.credentials(); break;
-        case "sharingSave": result = sharing.configure(request.input); break;
+        case "sharingSave": {
+          const before = sharing.credentials(); result = sharing.configure(request.input);
+          if (before.url !== request.input.url || before.groupKey !== request.input.groupKey) sync.connectionChanged();
+          if (request.input.url) void sharing.prepare(); break;
+        }
+        case "syncControl":
+          if (request.input === "start") sync.start(); else if (request.input === "stop") sync.stop(); else sync.request();
+          result = sync.snapshot(); break;
+        case "syncInterval":
+          store.save({ ...state.settings, syncInterval: request.input }); state.settings.syncInterval = request.input; sync.setInterval(request.input); result = state; break;
         case "removeTimer": {
           pendingObservations.delete(slotKey(request.input));
           timers.remove(request.input); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
@@ -146,9 +160,9 @@ native.on(REQUEST, raw => {
         }
         case "diagnostics": {
           if (request.input === "open") {
-            const explorer = Bun.spawn(["explorer.exe", join(root, "logs")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true });
+            const explorer = Bun.spawn([join(process.env.WINDIR ?? "C:/Windows", "explorer.exe"), join(root, "logs")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: false });
             explorer.unref(); result = "Opened the logs folder.";
-          } else if (request.input === "copy") {
+          } else if (request.input === "clear") { logger.clear(); result = "Logs cleared."; } else if (request.input === "copy") {
             await native.call("clipboard.writeText", { data: diagnostics.report(state, logger.recent(), Date.now()) }); result = "Sanitized diagnostics copied to the clipboard.";
           } else {
             if (request.input === "start") diagnostics.start(Date.now()); else diagnostics.stop();
@@ -174,6 +188,7 @@ native.on(REQUEST, raw => {
           store.save(request.input); state.settings = request.input;
           timers.setSelection(request.input.tracking); state.timers = timers.selectedSnapshot();
           capture?.configure(request.input.capture); state.capture = capture?.snapshot() ?? emptyCapture();
+          if (sync.snapshot().interval !== request.input.syncInterval) sync.setInterval(request.input.syncInterval);
           state.warning = timers.warning ?? store.warning; logger.write("settings-saved");
           if (companion?.exitCode === null) send("configure", { hotkeys: state.settings.hotkeys }); result = state; break;
         case "shell":
@@ -195,7 +210,7 @@ native.on(REQUEST, raw => {
     } catch (error) {
       logger?.write("rpc-failed");
       // Only our deliberate validation/storage errors reach the UI; native payloads never do.
-      const message = error instanceof Error && /^(Sharing:|Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
+      const message = error instanceof Error && /^(Logs could|Sharing:|Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
         ? error.message : "The action failed. Please retry or restart MVP Tracker.";
       if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: message } }).catch(() => {});
     }
@@ -213,6 +228,11 @@ async function initialize(trayReady: boolean) {
     if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
   });
   state.sharing = sharing.snapshot();
+  sync = new SyncCoordinator(sharing, timers, () => state.settings.tracking, () => capture?.snapshot().identity.name, flushObservations, () => {
+    state.sync = sync.snapshot(); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
+    if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
+  }, settings.syncInterval);
+  state.sync = sync.snapshot();
   capture = new CaptureService(settings.capture, observation => {
     const key = slotKey(observation), pending = pendingObservations.get(key);
     if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);

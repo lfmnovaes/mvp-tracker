@@ -1,12 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isSelected, parseSelection, type Selection } from "../domain/catalog";
+import { applySync, parseSyncCache, type SyncCache } from "../domain/sync";
+import type { SyncResult } from "../shared/sharing";
+import type { Observation } from "../domain/timers";
 import { applyManual, expireSlots, mergeObservations, parseSlot, parseTimerState, slotKey, TIMER_SCHEMA, type ManualEntry, type TimerSlot, type Slot } from "../domain/timers";
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 // In-memory transitions are synchronous and file replacement is atomic. No stale async save can overtake a new observation.
 export class TimerStore {
   private slots: TimerSlot[] = [];
+  private sync?: SyncCache;
   readonly file: string;
   warning: string | null = null;
   private writeBlocked = false;
@@ -25,6 +29,7 @@ export class TimerStore {
       if (statSync(source).size > MAX_FILE_BYTES) throw new Error("File too large.");
       const saved = JSON.parse(readFileSync(source, "utf8"));
       this.slots = parseTimerState(saved, this.now());
+      try { this.sync = saved.sync ? parseSyncCache(saved.sync) : undefined; } catch { this.sync = undefined; }
       this.dirty = source === temporary || JSON.stringify(saved) !== JSON.stringify(this.serialized());
       if (this.dirty) this.flush();
       // A leftover temporary never overrides committed data and must not keep expired payloads as a hidden history.
@@ -35,7 +40,18 @@ export class TimerStore {
       this.warning = "Timer data could not be read. The original file is preserved; correct or move it before restarting. New observations can be held in memory only.";
     }
   }
-  private serialized() { return { schemaVersion: TIMER_SCHEMA, slots: this.slots }; }
+  private serialized() { return { schemaVersion: TIMER_SCHEMA, slots: this.slots, ...(this.sync ? { sync: this.sync } : {}) }; }
+  syncState(): SyncCache | undefined { return this.sync && structuredClone(this.sync); }
+  checkpoint(cache: SyncCache) {
+    this.sync = parseSyncCache(cache); this.dirty = true; this.flush();
+    if (this.dirty || this.writeBlocked) throw new Error("Sharing: sync state could not be saved. Check portable folder access.");
+  }
+  acceptSync(result: SyncResult, outgoing: Observation[], connectionId: string, selectionKey: string) {
+    const next = applySync(this.slots, this.sync, result, outgoing, connectionId, selectionKey, this.selection, this.now());
+    const changed = JSON.stringify(this.slots) !== JSON.stringify(next.slots) || JSON.stringify(this.sync) !== JSON.stringify(next.cache);
+    this.slots = next.slots; this.sync = next.cache; this.dirty ||= changed; this.flush();
+    if (this.dirty || this.writeBlocked) throw new Error("Sharing: downloaded changes are in memory, but could not be saved. Check portable folder access.");
+  }
   private replace(slots: TimerSlot[]): boolean {
     if (JSON.stringify(slots) === JSON.stringify(this.slots)) return false;
     this.slots = slots; this.dirty = true; this.flush(); return true;

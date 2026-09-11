@@ -20,6 +20,7 @@ afterEach(() => {
 test("connection origins and keys validate before transmission; IPC shares the same checks", () => {
   expect(parseConnection({ ...config, url: config.url + "/" })).toEqual(config);
   expect(parseConnection({ url: "", groupKey: "" })).toEqual({ url: "", groupKey: "" });
+  expect(parseConnection({ url: config.url + "/", groupKey: "" })).toEqual({ url: config.url, groupKey: "" });
   for (const url of ["http://test.convex.cloud", "https://test.convex.site", "https://dashboard.convex.dev", "https://test.convex.cloud.evil.com", "https://user@test.convex.cloud", "https://test.convex.cloud:443", config.url + "/api", config.url + "?key=x", "https://127.0.0.1"]) expect(() => parseConnection({ ...config, url })).toThrow();
   expect(() => parseRequest({ id: "save", method: "sharingSave", input: { ...config, groupKey: "short" } })).toThrow();
 });

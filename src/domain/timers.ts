@@ -14,7 +14,7 @@ export interface Observation extends Slot {
   observedByCharacter?: string;
   instanceId?: string;
   replacesObservationId?: string;
-  submission?: { submittedByCharacter: string; serverAcceptedAt: number };
+  submission?: { submittedByCharacter: string | null; serverAcceptedAt: number };
 }
 export interface TimerSlot extends Slot { observation?: Observation; outdated: boolean }
 export type TimerStatus = "waiting" | "window" | "spawned" | "outdated" | "empty";
@@ -44,8 +44,8 @@ export function parseObservation(raw: unknown, now: number): Observation {
     replacesObservationId: o.replacesObservationId === undefined ? undefined : observationId(o.replacesObservationId) };
   let submission: Observation["submission"];
   if (o.submission !== undefined) {
-    const name = boundedText(o.submission?.submittedByCharacter, 80), at = o.submission?.serverAcceptedAt;
-    if (!name || !Number.isSafeInteger(at) || at < 0 || at > now + CLOCK_SKEW) throw new Error("Invalid submission metadata.");
+    const name = o.submission?.submittedByCharacter === null ? null : boundedText(o.submission?.submittedByCharacter, 80), at = o.submission?.serverAcceptedAt;
+    if (name === undefined || !Number.isSafeInteger(at) || at < 0 || at > now + CLOCK_SKEW) throw new Error("Invalid submission metadata.");
     submission = { submittedByCharacter: name, serverAcceptedAt: at };
   }
   return { ...slot, observationId: observationId(o.observationId), diedAt: o.diedAt, gatheredAt: o.gatheredAt, source: o.source, timePrecision: o.timePrecision,

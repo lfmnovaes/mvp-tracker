@@ -9,6 +9,10 @@ export class Logger {
     try { mkdirSync(root, { recursive: true }); this.prune(); } catch { this.available = false; }
   }
   private file(index: number) { return join(this.root, index === 0 ? "mvp-tracker.log" : `mvp-tracker.${index}.log`); }
+  clear() {
+    try { for (let i = 0; i < this.maxFiles; i++) if (existsSync(this.file(i))) unlinkSync(this.file(i)); this.available = true; }
+    catch { throw new Error("Logs could not be cleared. Check folder access."); }
+  }
   private prune() {
     for (let i = 0; i < this.maxFiles; i++) {
       const p = this.file(i);

@@ -2,7 +2,7 @@ import { test, expect, afterEach } from "bun:test";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, readdirSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaults, parseRequest, parseSettings } from "../src/shared/protocol";
+import { defaults, parseRequest, parseSettings, requestId } from "../src/shared/protocol";
 import { SettingsStore } from "../src/backend/storage";
 import { Logger } from "../src/backend/logger";
 const roots: string[] = [];
@@ -37,6 +37,14 @@ test("duplicate, bare-letter and reserved shortcut bindings are rejected", () =>
 test("IPC validates method, ID, input and clipboard bounds", () => {
   for (const raw of [null, { id: "a", method: "shell", input: "exec" }, { id: "../a", method: "snapshot", input: null }, { id: "a", method: "clipboardRead", input: true }, { id: "a", method: "clipboardWrite", input: "x".repeat(1_000_001) }]) expect(() => parseRequest(raw)).toThrow();
   expect(parseRequest({ id: "good-id", method: "clipboardWrite", input: "example" }).method).toBe("clipboardWrite");
+});
+
+test("invalid request bodies retain a safe reply ID and clearing logs preserves unrelated files", () => {
+  const raw = { id: "reply-to-invalid-save", method: "sharingSave", input: { url: "bad", groupKey: "" } };
+  const id = requestId(raw); expect(() => parseRequest(raw)).toThrow(); expect(id).toBe(raw.id);
+  expect(requestId({ id: "../bad" })).toBeUndefined();
+  const root = temporary(), log = new Logger(root); log.write("started"); writeFileSync(join(root, "keep.txt"), "unrelated");
+  log.clear(); expect(readdirSync(root)).toEqual(["keep.txt"]); log.write("started"); expect(log.recent()).toHaveLength(1);
 });
 test("logs rotate at their byte cap, retain five files and prune old logs", () => {
   const root = temporary(); const log = new Logger(root, 150, 5, 1000);

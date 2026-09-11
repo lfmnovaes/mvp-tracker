@@ -4,6 +4,7 @@ import { beforeEach, afterEach, expect, test, vi } from "vitest";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import { EXPIRE_AFTER, MINUTE } from "../src/domain/time";
+import { BOSSES, REGIONS } from "../src/domain/catalog";
 const modules = import.meta.glob(["./**/*.ts", "./**/*.js", "!./**/*.test.ts"]);
 const key = "test_group_key_01234567890123456789", now = Date.UTC(2026, 8, 11, 18);
 const access = { key, protocol: 1 };
@@ -18,7 +19,7 @@ async function setup() {
 test("access fails closed, Test is read-only and initialization preserves the dataset", async () => {
   const t = convexTest(schema, modules);
   await expect(t.query(api.timers.testConnection, { ...access, key: "wrong" })).rejects.toThrow();
-  vi.stubEnv("MVP_GROUP_KEY", ""); await expect(t.query(api.timers.testConnection, access)).rejects.toThrow(); vi.stubEnv("MVP_GROUP_KEY", key);
+  vi.stubEnv("MVP_GROUP_KEY", "invalid"); await expect(t.query(api.timers.testConnection, access)).rejects.toThrow(); vi.stubEnv("MVP_GROUP_KEY", key);
   expect((await t.query(api.timers.testConnection, access)).dataset).toBeNull();
   expect(await t.run(ctx => ctx.db.query("trackerMeta").collect())).toHaveLength(0);
   const d = await t.mutation(internal.timers.initialize, {});
@@ -26,6 +27,44 @@ test("access fails closed, Test is read-only and initialization preserves the da
   await expect(t.query(api.timers.testConnection, { ...access, protocol: 99 })).rejects.toThrow();
   await t.run(async ctx => { const m = (await ctx.db.query("trackerMeta").first())!; await ctx.db.patch(m._id, { schema: 99 }); });
   await expect(t.query(api.timers.testConnection, access)).rejects.toThrow();
+});
+
+test("URL-only deployments accept an empty key and anonymous uploads", async () => {
+  const { t, args } = await setup(); vi.stubEnv("MVP_GROUP_KEY", "");
+  const result = await t.mutation(api.timers.sync, { ...args, key: "", sentByCharacter: null });
+  expect(result.slots[0]?.observation?.submission?.submittedByCharacter).toBeNull();
+});
+
+test("first-sync initialization is authorized and never resets existing observations", async () => {
+  const t = convexTest(schema, modules);
+  await expect(t.mutation(api.timers.ensureInitialized, { ...access, key: "wrong" })).rejects.toThrow();
+  const initial = await t.mutation(api.timers.ensureInitialized, access);
+  const again = await t.mutation(api.timers.ensureInitialized, access); expect(again).toEqual(initial);
+});
+
+test("scheduled cleanup removes expired payloads without clients and ignores superseded jobs", async () => {
+  const { t, args } = await setup(); await t.mutation(api.timers.sync, args);
+  const old = (await t.run(ctx => ctx.db.query("trackerMeta").first()))!;
+  expect(old.cleanupJob).toBeDefined();
+  await t.mutation(api.timers.sync, { ...args, observations: [evidence("newer", { diedAt: now - MINUTE, gatheredAt: now })] });
+  await t.mutation(internal.timers.cleanup, { generation: old.generation, token: old.cleanupToken! });
+  expect((await t.run(ctx => ctx.db.query("bossTimers").first()))?.observation?.observationId).toBe("newer");
+  await vi.advanceTimersByTimeAsync(EXPIRE_AFTER); await t.finishInProgressScheduledFunctions();
+  expect((await t.run(ctx => ctx.db.query("bossTimers").first()))?.observation).toBeUndefined();
+  const cleaned = (await t.run(ctx => ctx.db.query("trackerMeta").first()))!; expect(cleaned.nextExpiry).toBeUndefined(); expect(cleaned.cleanupJob).toBeUndefined();
+});
+
+test("42-slot and full-catalog syncs have bounded payloads; unchanged polls return no rows", async () => {
+  for (const count of [42, 594]) {
+    const { t, args } = await setup();
+    const rows = BOSSES.flatMap(b => REGIONS.flatMap(region => [1, 2, 3].map(channel => evidence(`id-${b.id}-${region}-${channel}`.replace(/[^A-Za-z0-9_-]/g, "_"), { mobId: b.id, region, channel })))).slice(0, count);
+    const first = await t.mutation(api.timers.sync, { ...args, observations: rows }); expect(first.slots).toHaveLength(count);
+    const unchanged = await t.mutation(api.timers.sync, { ...args, observations: [], sinceRevision: first.dataset.revision });
+    expect(unchanged.slots).toEqual([]); expect(unchanged.dataset.revision).toBe(first.dataset.revision);
+    const uploadBytes = new TextEncoder().encode(JSON.stringify(rows)).length, fullBytes = new TextEncoder().encode(JSON.stringify(first)).length, idleBytes = new TextEncoder().encode(JSON.stringify(unchanged)).length;
+    expect(uploadBytes).toBeLessThan(512000); expect(idleBytes).toBeLessThan(512);
+    console.info(`Sync fixture ${count}: upload=${uploadBytes}B full=${fullBytes}B idle=${idleBytes}B`);
+  }
 });
 test("transaction merge preserves unselected slots, stamps sender once and returns cheap deltas", async () => {
   const { t, args } = await setup();
@@ -47,8 +86,8 @@ test("invalid batches are atomic and missing sender allows only pulls", async ()
   for (const patch of [{ channel: 4 }, { mobId: "Dragon Predator Robot" }, { gatheredAt: now + MINUTE }, { killedBy: "bad\nname" }]) {
     await expect(t.mutation(api.timers.sync, { ...args, observations: [evidence("good"), evidence("bad", patch)] })).rejects.toThrow();
   }
-  await expect(t.mutation(api.timers.sync, { ...args, sentByCharacter: undefined })).rejects.toThrow();
-  expect((await t.mutation(api.timers.sync, { ...args, observations: [], sentByCharacter: undefined })).slots).toEqual([]);
+  const anonymous = await t.mutation(api.timers.sync, { ...args, sentByCharacter: null }); expect(anonymous.slots[0]?.observation?.submission?.submittedByCharacter).toBeNull();
+  expect((await t.mutation(api.timers.sync, { ...args, observations: [], sentByCharacter: undefined })).slots).toHaveLength(1);
   await t.mutation(api.timers.sync, args);
   await expect(t.mutation(api.timers.sync, { ...args, observations: [evidence("evidence", { channel: 1 })] })).rejects.toThrow();
   expect((await t.query(api.timers.snapshot, { ...access, datasetId: args.datasetId, generation: args.generation })).slots).toHaveLength(1);
