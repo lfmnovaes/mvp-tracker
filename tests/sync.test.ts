@@ -9,7 +9,7 @@ import { emptySlot, mergeObservations, slotKey, type Observation, type TimerSlot
 import { applySync, pendingUploads } from "../src/domain/sync";
 import type { Connection, Dataset, Discovery, SyncInput, SyncResult } from "../src/shared/sharing";
 const roots: string[] = [], engines: SyncCoordinator[] = [];
-const now = Date.UTC(2026, 8, 11, 18), config = { url: "https://test-sync.convex.cloud", groupKey: "" };
+const now = Date.UTC(2026, 8, 11, 18), config = { url: "https://test-sync.convex.cloud" };
 const o = (id: string, patch: Partial<Observation> = {}): Observation => ({ mobId: "NightmarePaladinBoss", region: "sa", channel: 1, observationId: id, diedAt: now - 600000, gatheredAt: now - 1000, source: "manual", timePrecision: "second", ...patch });
 class Clock implements SyncClock {
   time = now; next = 0; jobs = new Map<number, { at: number; callback: () => void }>();
@@ -26,7 +26,7 @@ class Transport implements SyncTransport {
   hold?: Promise<void>; error?: Error; resets: string[] = []; lostReset = false; receipts = new Map<string, Dataset>();
   constructor(public clock: Clock) {}
   credentials = (): Connection => ({ ...this.config }); close() {}
-  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 1, schema: 1, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
+  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 2, schema: 1, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
   async sync(input: SyncInput): Promise<SyncResult> {
     this.calls.push(structuredClone(input)); await this.hold;
     if (this.error) throw this.error;
@@ -92,7 +92,7 @@ test("network backoff and permanent errors do not schedule unlimited retries", a
   const { engine, transport, clock } = fixture(); engine.request(); await engine.settled();
   transport.error = new Error("Sharing: Could not reach Convex. Retry."); engine.start(); await engine.settled();
   expect(engine.snapshot().phase).toBe("backoff"); expect(clock.jobs.size).toBe(1);
-  transport.error = new Error("Sharing: The group key was rejected."); await clock.advance(60000, engine);
+  transport.error = new Error("Sharing: Install matching MVP Tracker backend functions."); await clock.advance(60000, engine);
   expect(engine.snapshot().running).toBe(false); expect(engine.snapshot().phase).toBe("paused"); expect(clock.jobs.size).toBe(0);
 });
 test("a changed connection discards a late response and keeps local timers", async () => {
@@ -107,6 +107,16 @@ test("reset retries a persisted request ID after a lost response and leaves auto
   expect(new TimerStore(root, defaultSelection(), clock.now).syncState()?.resetRequest?.id).toBe(transport.resets[0]);
   engine.request(); await engine.settled(); expect(transport.resets[1]).toBe(transport.resets[0]);
   expect(store.snapshot()[0]?.observation).toBeUndefined(); expect(engine.snapshot().running).toBe(false); expect(engine.snapshot().resetPending).toBe(false);
+});
+
+test("confirmed reset works after connection testing without uploading local data first", async () => {
+  const { engine, transport, store } = fixture(); store.ingest([o("local")]);
+  await engine.reset(transport.dataset);
+  expect(transport.calls).toHaveLength(0); expect(transport.resets).toHaveLength(1);
+  expect(store.snapshot()[0]?.observation).toBeUndefined(); expect(engine.snapshot().running).toBe(false);
+  const other = fixture();
+  await expect(other.engine.reset({ ...other.transport.dataset, datasetId: "different" })).rejects.toThrow();
+  expect(other.transport.resets).toHaveLength(0);
 });
 
 test("a manual sync for a changed connection waits for the old request to drain", async () => {

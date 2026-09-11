@@ -9,12 +9,7 @@ import { EXPIRE_AFTER } from "../src/domain/time";
 import { SHARING_PROTOCOL, SHARING_SCHEMA, type Dataset, type Discovery, type SharedSlot, type SyncResult } from "../src/shared/sharing";
 
 function fail(code: string): never { throw new ConvexError({ code }); }
-function authorize(key: string, protocol: number) {
-  const expected = process.env.MVP_GROUP_KEY ?? "";
-  if (expected && !/^[A-Za-z0-9_-]{32,128}$/.test(expected)) fail("OWNER_SETUP");
-  let difference = key.length ^ expected.length;
-  for (let i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ (key.charCodeAt(i) || 0);
-  if (expected && difference) fail("UNAUTHORIZED");
+function checkProtocol(protocol: number) {
   if (protocol !== SHARING_PROTOCOL) fail("VERSION");
 }
 async function meta(ctx: QueryCtx) {
@@ -40,9 +35,9 @@ async function result(ctx: QueryCtx, m: Doc<"trackerMeta">, since: number | null
   if (rows.length > MAX_SLOTS) fail("CAPACITY");
   return { dataset: dataset(m), serverTime: now, full, slots: rows.map(r => publicSlot(r, now)), acknowledged };
 }
-export const testConnection = query({ args: { key: v.string(), protocol: v.number() }, handler: async (ctx, args): Promise<Discovery> => {
-  authorize(args.key, args.protocol); const m = await meta(ctx);
-  return { app: "mvp-tracker", protocol: SHARING_PROTOCOL, schema: SHARING_SCHEMA, catalog: CATALOG_VERSION, serverTime: Date.now(), dataset: m ? dataset(m) : null, disposable: process.env.MVP_DISPOSABLE_TEST === "1" };
+export const testConnection = query({ args: { protocol: v.number() }, handler: async (ctx, args): Promise<Discovery> => {
+  checkProtocol(args.protocol); const m = await meta(ctx);
+  return { app: "mvp-tracker", protocol: SHARING_PROTOCOL, schema: SHARING_SCHEMA, catalog: CATALOG_VERSION, serverTime: Date.now(), dataset: m ? dataset(m) : null };
 } });
 async function initializeDataset(ctx: MutationCtx): Promise<Dataset> {
   const existing = await meta(ctx); if (existing) return dataset(existing);
@@ -50,11 +45,11 @@ async function initializeDataset(ctx: MutationCtx): Promise<Dataset> {
   await ctx.db.patch(id, { datasetId: String(id) }); return dataset((await ctx.db.get(id))!);
 }
 export const initialize = internalMutation({ args: {}, handler: initializeDataset });
-export const ensureInitialized = mutation({ args: { key: v.string(), protocol: v.number() }, handler: async (ctx, args): Promise<Dataset> => {
-  authorize(args.key, args.protocol); return initializeDataset(ctx);
+export const ensureInitialized = mutation({ args: { protocol: v.number() }, handler: async (ctx, args): Promise<Dataset> => {
+  checkProtocol(args.protocol); return initializeDataset(ctx);
 } });
-export const snapshot = query({ args: { key: v.string(), protocol: v.number(), datasetId: v.string(), generation: v.number() }, handler: async (ctx, args): Promise<SyncResult> => {
-  authorize(args.key, args.protocol); return result(ctx, await bound(ctx, args.datasetId, args.generation), null, Date.now());
+export const snapshot = query({ args: { protocol: v.number(), datasetId: v.string(), generation: v.number() }, handler: async (ctx, args): Promise<SyncResult> => {
+  checkProtocol(args.protocol); return result(ctx, await bound(ctx, args.datasetId, args.generation), null, Date.now());
 } });
 async function expire(ctx: MutationCtx, m: Doc<"trackerMeta">, now: number) {
   if (m.nextExpiry === undefined || m.nextExpiry > now) return;
@@ -80,9 +75,9 @@ export const cleanup = internalMutation({ args: { generation: v.number(), token:
   m.cleanupJob = undefined; await expire(ctx, m, Date.now()); await expiryMetadata(ctx, m);
 } });
 export const sync = mutation({ args: {
-  key: v.string(), protocol: v.number(), datasetId: v.string(), generation: v.number(), sinceRevision: v.union(v.number(), v.null()), requestId: v.string(), sentByCharacter: v.optional(v.union(v.string(), v.null())), observations: v.array(observation),
+  protocol: v.number(), datasetId: v.string(), generation: v.number(), sinceRevision: v.union(v.number(), v.null()), requestId: v.string(), sentByCharacter: v.optional(v.union(v.string(), v.null())), observations: v.array(observation),
 }, handler: async (ctx, args): Promise<SyncResult> => {
-  authorize(args.key, args.protocol); const m = await bound(ctx, args.datasetId, args.generation); requestId(args.requestId);
+  checkProtocol(args.protocol); const m = await bound(ctx, args.datasetId, args.generation); requestId(args.requestId);
   const now = Date.now(), before = m.revision;
   if (args.sinceRevision !== null && (!Number.isSafeInteger(args.sinceRevision) || args.sinceRevision < 0) || args.observations.length > MAX_SLOTS || JSON.stringify(args.observations).length > 512000) fail("INVALID_BATCH");
   const sender = args.sentByCharacter?.trim();
@@ -108,8 +103,8 @@ export const sync = mutation({ args: {
   if (m.revision !== before || m.nextExpiry !== undefined && !m.cleanupJob) await expiryMetadata(ctx, m);
   return result(ctx, m, args.sinceRevision, now, [...ids.keys()]);
 } });
-export const reset = mutation({ args: { key: v.string(), protocol: v.number(), datasetId: v.string(), generation: v.number(), requestId: v.string() }, handler: async (ctx, args): Promise<Dataset> => {
-  authorize(args.key, args.protocol); requestId(args.requestId);
+export const reset = mutation({ args: { protocol: v.number(), datasetId: v.string(), generation: v.number(), requestId: v.string() }, handler: async (ctx, args): Promise<Dataset> => {
+  checkProtocol(args.protocol); requestId(args.requestId);
   const m = await meta(ctx); if (!m) fail("NOT_INITIALIZED"); if (m.datasetId !== args.datasetId) fail("GENERATION");
   const receipt = await ctx.db.query("resetReceipts").withIndex("by_request", q => q.eq("requestId", args.requestId)).unique();
   if (receipt) {

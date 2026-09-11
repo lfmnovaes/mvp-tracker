@@ -120,7 +120,7 @@ native.on(REQUEST, raw => {
         case "sharingRead": result = sharing.credentials(); break;
         case "sharingSave": {
           const before = sharing.credentials(); result = sharing.configure(request.input);
-          if (before.url !== request.input.url || before.groupKey !== request.input.groupKey) sync.connectionChanged();
+          if (before.url !== request.input.url) sync.connectionChanged();
           if (request.input.url) void sharing.prepare(); break;
         }
         case "syncControl":

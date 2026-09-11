@@ -6,20 +6,18 @@ import { api, internal } from "./_generated/api";
 import { EXPIRE_AFTER, MINUTE } from "../src/domain/time";
 import { BOSSES, REGIONS } from "../src/domain/catalog";
 const modules = import.meta.glob(["./**/*.ts", "./**/*.js", "!./**/*.test.ts"]);
-const key = "test_group_key_01234567890123456789", now = Date.UTC(2026, 8, 11, 18);
-const access = { key, protocol: 1 };
+const now = Date.UTC(2026, 8, 11, 18);
+const access = { protocol: 2 };
 const slot = { mobId: "NightmarePaladinBoss", region: "sa", channel: 2 };
 const evidence = (id = "evidence", patch = {}) => ({ ...slot, observationId: id, diedAt: now - 70 * MINUTE, gatheredAt: now - MINUTE, source: "manual" as const, timePrecision: "second" as const, killedBy: "Killer", observedByCharacter: "Observer", ...patch });
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); vi.stubEnv("MVP_GROUP_KEY", key); });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); });
+afterEach(() => { vi.useRealTimers(); });
 async function setup() {
   const t = convexTest(schema, modules), d = await t.mutation(internal.timers.initialize, {});
   return { t, d, args: { ...access, datasetId: d.datasetId, generation: d.generation, sinceRevision: null, requestId: "request", sentByCharacter: "Sender", observations: [evidence()] } };
 }
-test("access fails closed, Test is read-only and initialization preserves the dataset", async () => {
+test("Test is read-only and initialization preserves the dataset", async () => {
   const t = convexTest(schema, modules);
-  await expect(t.query(api.timers.testConnection, { ...access, key: "wrong" })).rejects.toThrow();
-  vi.stubEnv("MVP_GROUP_KEY", "invalid"); await expect(t.query(api.timers.testConnection, access)).rejects.toThrow(); vi.stubEnv("MVP_GROUP_KEY", key);
   expect((await t.query(api.timers.testConnection, access)).dataset).toBeNull();
   expect(await t.run(ctx => ctx.db.query("trackerMeta").collect())).toHaveLength(0);
   const d = await t.mutation(internal.timers.initialize, {});
@@ -29,15 +27,14 @@ test("access fails closed, Test is read-only and initialization preserves the da
   await expect(t.query(api.timers.testConnection, access)).rejects.toThrow();
 });
 
-test("URL-only deployments accept an empty key and anonymous uploads", async () => {
-  const { t, args } = await setup(); vi.stubEnv("MVP_GROUP_KEY", "");
-  const result = await t.mutation(api.timers.sync, { ...args, key: "", sentByCharacter: null });
+test("URL-only deployments accept anonymous uploads without environment configuration", async () => {
+  const { t, args } = await setup();
+  const result = await t.mutation(api.timers.sync, { ...args, sentByCharacter: null });
   expect(result.slots[0]?.observation?.submission?.submittedByCharacter).toBeNull();
 });
 
-test("first-sync initialization is authorized and never resets existing observations", async () => {
+test("first-sync initialization checks protocol and never resets existing observations", async () => {
   const t = convexTest(schema, modules);
-  await expect(t.mutation(api.timers.ensureInitialized, { ...access, key: "wrong" })).rejects.toThrow();
   const initial = await t.mutation(api.timers.ensureInitialized, access);
   const again = await t.mutation(api.timers.ensureInitialized, access); expect(again).toEqual(initial);
 });
@@ -78,11 +75,8 @@ test("transaction merge preserves unselected slots, stamps sender once and retur
   expect(delta.full).toBe(false); expect(delta.slots).toHaveLength(1); expect(delta.slots[0]?.observation?.killedBy).toBe("Different");
   const pull = await t.query(api.timers.snapshot, { ...access, datasetId: args.datasetId, generation: args.generation }); expect(pull.slots).toHaveLength(2);
 });
-test("invalid batches are atomic and missing sender allows only pulls", async () => {
+test("invalid batches are atomic and missing sender uploads anonymously", async () => {
   const { t, args } = await setup();
-  await expect(t.mutation(api.timers.sync, { ...args, key: "wrong" })).rejects.toThrow();
-  await expect(t.query(api.timers.snapshot, { ...access, key: "wrong", datasetId: args.datasetId, generation: 1 })).rejects.toThrow();
-  await expect(t.mutation(api.timers.reset, { ...access, key: "wrong", datasetId: args.datasetId, generation: 1, requestId: "bad-reset" })).rejects.toThrow();
   for (const patch of [{ channel: 4 }, { mobId: "Dragon Predator Robot" }, { gatheredAt: now + MINUTE }, { killedBy: "bad\nname" }]) {
     await expect(t.mutation(api.timers.sync, { ...args, observations: [evidence("good"), evidence("bad", patch)] })).rejects.toThrow();
   }

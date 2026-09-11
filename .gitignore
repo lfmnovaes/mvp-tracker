@@ -11,6 +11,6 @@
 neutralinojs.log
 *.tmp
 .env*
-!.env.integration.example
+!.env.local.sample
 /.convex/
 *secrets*.json

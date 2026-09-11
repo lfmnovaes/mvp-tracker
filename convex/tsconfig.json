@@ -1,8 +1,26 @@
 {
   "compilerOptions": {
-    "target": "ESNext", "lib": ["ES2022", "DOM"], "module": "ESNext", "moduleResolution": "Bundler",
-    "strict": true, "noEmit": true, "skipLibCheck": true, "allowJs": true, "allowImportingTsExtensions": true
+    "target": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "types": [
+      "node"
+    ]
   },
-  "include": ["./**/*"],
-  "exclude": ["./_generated", "./**/*.test.ts"]
+  "include": [
+    "./**/*"
+  ],
+  "exclude": [
+    "./_generated",
+    "./**/*.test.ts"
+  ]
 }

@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 11 September 2026 with the latest user decisions. Steps 0–7 are complete (app version 0.1.7). Convex replaces Google Sheets entirely. Group key and character name are optional. The supplied deployment was checked read-only and has no MVP Tracker functions yet; owner deployment and real group testing remain pending. No product questions remain open.
+Updated 11 September 2026. Steps 0–7 are complete (app version 0.1.7). Latest follow-up removes group keys and the integration environment entirely: players use only the Settings URL. Character name remains optional. Sharing protocol 2 requires matching owner-deployed functions. Both TypeScript projects and 73 unit tests pass. Owner deployment and manual group testing remain pending; see docs/step-7-url-only.md.
 
 ## 1. Agreed scope
 
@@ -20,7 +20,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 | Respawn | User-confirmed game rule: grave present means boss has not respawned; respawn occurs 60–90 minutes after death, for all supported bosses. |
 | Expiry | At +90 minutes mark Spawned. Keep the kill information until +150 minutes, then discard its values and retain the boss slot labeled Outdated. |
 | Edits | Add and Edit set kill date/time; confirmation automatically stamps the information time from the Windows clock. Manual and automatic evidence may replace one another. |
-| Sharing | Configurable Convex cloud development URL plus optional shared group key, empty initially. Transactional manual sync and optional timed auto-sync: 10, 20, or 30 seconds; 1, 2, or 5 minutes. |
+| Sharing | Configurable Convex cloud development URL, empty initially. Transactional manual sync and optional timed auto-sync: 10, 20, or 30 seconds; 1, 2, or 5 minutes. |
 | Reset | Confirmed Convex reset mutation clears tracker observations and advances dataset generation, retaining schema/catalog labels. Owner deploys functions separately with `npx convex dev --once`; this command does not erase records. |
 | Text export | Selected Dark Fortress bosses only; kill time `HH:mm`; no `?` or other uncertainty markers; headers such as `SA UTC-3`. |
 | JSON/compressed export | All selected supported bosses/regions, regardless of temporary search; include killer, observer/sender attribution, and merge metadata. |
@@ -35,7 +35,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 
 Google Sheets, its access questions, table-formatting requirements, and future OAuth/coordinator backlog are removed. Use a shared **cloud development deployment** of Convex for the private group, not a separate local database per player. Every player connects to the same development URL and the owner deploys the matching MVP Tracker functions/schema first.
 
-The latest user decision makes the shared group key optional, with no individual sign-in. With MVP_GROUP_KEY absent or empty, URL-only access is allowed. When configured, validate the key in every exposed tracker query/mutation, including Test, initialization, Sync and Reset; malformed server keys fail closed. All authorized callers share the same permissions, including confirmed reset. Character names are optional self-reported attribution, not credentials. Never ship deploy/admin keys to players. [Function authorization](https://docs.convex.dev/auth/functions-auth).
+The latest user decision requires URL-only access with no group key or individual sign-in. All callers with the URL may Test, initialize, Sync and Reset. Character names are optional attribution, not credentials. Convex deployment credentials remain owner-only. The desktop never needs .env.local; the owner retains the CLI-generated CONVEX_DEPLOYMENT and URL for deployment commands. CONVEX_SITE_URL is unused.
 
 Owner setup and player actions are different: `npx convex dev --once` pushes code/schema to a configured dev deployment and exits; application Reset calls a deployed mutation to clear tracker data. The portable app does not require npm/Node, repository source, or Convex deployment credentials. An empty Convex project URL is insufficient until the functions are installed. [CLI reference](https://docs.convex.dev/cli/reference/dev).
 
@@ -134,7 +134,7 @@ Sort Boss/Map/Region/Killer alphabetically, Level/Channel numerically, and gathe
 
 Search normalizes case/accents, tokenizes ordinary input, and AND-matches tokens across boss/map/region/channel/killer. Support `paladin sa ch2`, `dark fortress`, `region:sa`, `ch:2`, plus explicit region/channel filters. Channel tokens must not match a level or clock. Distinguish no observations, no matches, None selected, and Outdated slots. Previously known slots may remain listed with cleared values; do not retain expired kills just to populate the table.
 
-Bottom toolbar has two compact groups: Add manually / Export format / Export / Import, and Sync now / Auto interval / Start or Stop. Show last success, next sync countdown, and Sharing as character beneath the sync controls. Manual save is independent of sync. Sync/Start require a valid configured Convex URL/key. See section 6 for the scheduler behavior.
+Bottom toolbar has two compact groups: Add manually / Export format / Export / Import, and Sync now / Auto interval / Start or Stop. Show last success, next sync countdown, and Sharing as character beneath the sync controls. Manual save is independent of sync. Sync/Start require a valid configured Convex URL. See section 6 for the scheduler behavior.
 
 ### Add and Edit
 
@@ -148,7 +148,7 @@ Each row has Edit for the kill date/time and optional killer. Keep boss/region/c
 
 - **General:** AM/PM versus 24-hour format, disabled timezone dropdown showing America/Sao_Paulo, UI scale, remembered window bounds, Start minimized (off initially), optional/rebindable F7/F8/F9 hotkeys, Exit MVP Tracker.
 - **Tracking:** scrollable Boss/Level/Map/Track table with All/Endgame/None, plus region checkboxes defaulting to SA and NA. Apply changes to local display/ingestion/export immediately.
-- **Sharing:** editable Convex URL and masked optional shared group key (empty initially), Test connection, deployment/schema status, Sharing as character (detected/cached/manual fallback), auto-sync interval preference, last sync summary, setup help, and Reset tracker data. No Google or individual account controls.
+- **Sharing:** editable Convex URL (empty initially), Test connection, deployment/schema status, Sharing as character (detected/cached/manual fallback), auto-sync interval preference, last sync summary, setup help, and Reset database. No Google or individual account controls.
 - **Capture/Diagnostics:** Auto/manual network adapter, restart capture, Npcap status/help, app/tool versions, Open logs, Export diagnostics, bounded diagnostic mode.
 
 No launch-with-Windows setting, Portuguese localization, notifications/sounds, overlay hotkeys, or unrelated log/session controls. Retain manual adapter troubleshooting and UI scale because they directly support this application.
@@ -218,15 +218,15 @@ Test deterministic/idempotent/commutative ordinary merges over valid observation
 
 Add `convex/` to the application repository with schema, validated queries/mutations, generated API types, and setup instructions. Pin the `convex` package and CLI through the project lockfile. Configure an explicitly selected **cloud dev deployment** under the owner's Convex project, then run `npx convex dev --once` from the source checkout. Re-running deployment must preserve existing timer data. Current CLI supports selecting local/cloud during configuration; a noninteractive unconfigured invocation can otherwise provision a local deployment, which would not share data across players. [Dev configuration](https://docs.convex.dev/cli/reference/dev), [noninteractive deployment behavior](https://docs.convex.dev/cli/agent-mode).
 
-Authorized idempotent initialization creates dataset metadata without wiping observations. Save connection persists locally immediately and checks/initializes a compatible deployed backend in the background; first Sync can initialize too. Both Save connection and Save settings persist the Sharing fields. The optional group key belongs in deployment environment configuration, never tracked source. Keep .env.local, deployment credentials, login state and local secrets ignored. Use a cloud dev deployment for the group and a separate disposable deployment for destructive tests. No production deployment or paid plan is requested.
+Idempotent initialization creates dataset metadata without wiping observations. Save settings stores the URL locally and checks/initializes a compatible deployed backend in the background; first Sync can initialize too. Sharing presents one URL field with Test connection and confirmed Reset database. Reset may run immediately after setup without a local upload. Keep owner .env.local/deployment credentials ignored. Provide an empty .env.local.sample as a reference; no integration environment file or harness is required.
 
-Players paste the deployment URL, normally `https://<deployment>.convex.cloud`, and an optional shared group key into Settings. Do not accept dashboard URLs or mistake the `.convex.site` HTTP-action origin for the client deployment URL. Validate HTTPS/origin before sending the key and do not follow a redirect to an unrelated host with it. Settings begin empty. Changing URL/key stops auto-sync, invalidates cached connection state, and discards old in-flight responses using a connection generation; no requests may drift to a different configured group. Local timers remain available.
+Players paste only the HTTPS .convex.cloud deployment URL into Settings; dashboard and .convex.site URLs are rejected. Settings begin empty. Saving a changed URL stops auto-sync and discards old in-flight responses; local timers remain available. No redirects to unrelated hosts are followed.
 
 Use the generated API with `ConvexHttpClient` in the Bun backend for interval-driven calls; the documented client works in runtimes with fetch. No permanent realtime subscription is required in version 1, so Start/Stop genuinely controls background traffic. A future subscription can be assessed separately. [JavaScript clients](https://docs.convex.dev/client/javascript).
 
-Test connection calls a small authorized query returning app/protocol/schema versions, initialized status, dataset ID/generation, and server time. It does not write or reset data. Missing functions: show owner setup instructions. Incompatible schema: ask to install the matching backend version, not clear the database. Valid compatible empty/old data: sync normally. Wrong key, unreachable URL, missing initialization, and quota/service errors each have a concise distinct message. Shared-key checks are custom application authorization; Convex does not automatically make a URL or character name private.
+Test connection is read-only and checks app/protocol/schema/catalog versions, initialized state, dataset identity/generation and clock. Missing functions or incompatible schema require an owner deployment with npx convex dev --once. Reset clears all tracker observations and restores metadata for the deployed backend; it cannot install schema/functions or delete unrelated tables. Network, version and initialization errors have distinct messages.
 
-The user wants portable data. Keep the group key in a separate ignored local secrets file with a masked/reveal control and exclude it from timer exports/diagnostics/release artifacts. Document that someone copying that secrets file gains group access; allow deletion/rotation without losing timers. Never write the key or full function arguments into application/server logs. Dashboard/operator visibility of request data must be considered when choosing key transport; verify platform logging behavior before deployment.
+Save only the URL in ignored data/sharing.json. Migrate a valid old sharing-secrets.json by retaining its URL and removing the obsolete key file. Connection details remain excluded from exports/logs/release artifacts. Clearing the URL disconnects without losing timers.
 
 ### Data schema and character attribution
 
@@ -255,7 +255,7 @@ Request: protocol/schema version, expected dataset ID/generation, last known rev
 Normal flow:
 
 1. A single shared coordinator in the desktop accepts manual and timed sync requests. Snapshot the connection identity, character, generation, and pending observations.
-2. Server verifies group key and argument limits, then generation. Reject stale generations with current metadata and no writes. Validate the batch before any mutation becomes committed.
+2. Server verifies protocol and argument limits, then generation. Reject stale generations with current metadata and no writes. Validate the batch before any mutation becomes committed.
 3. Merge each candidate with current database evidence using section 5. Upsert only changed winners; preserve valid remote data for every unselected slot. Server controls acceptance timestamps/revisions, never overwrites gathered time with receipt time.
 4. Clear due expired payloads as slot updates; advance revision only for actual changes. Return a full snapshot on initial/reset/resync request, otherwise changed slots since the client's revision or an unchanged response. Include cleared slots, generation/revision, and server time.
 5. Desktop applies the result atomically with a durable acknowledgement watermark, merges against observations arriving during the request, and acknowledges only the outgoing records actually accepted/known by the server. Newer local edits remain pending. Store imported-but-not-newer data without re-stamping it.
@@ -272,11 +272,11 @@ Manual Sync/F9 remains usable while auto-sync runs. If idle, run immediately and
 
 Changing the dropdown while running cancels the previous scheduled callback and sets the next due time to now plus the new interval; if a request is active, finish it and schedule using the new interval from completion. Do not stop/restart the session or require another Start. Stop prevents further scheduled/queued automatic work but lets an in-flight mutation settle and applies its acknowledgement; it cannot undo a write already accepted. Manual sync stays available after Stop. Do not automatically retry after Stop without a manual request.
 
-Implement the scheduler with one replaceable timeout and explicit states: Stopped, Waiting, Syncing, Backoff, Paused/error. Use schedule/connection generation tokens to neutralize stale callbacks. During sleep/offline, accumulate no backlog of missed ticks; on resume/reconnect, do at most one catch-up if still started. Network failures use bounded exponential backoff/jitter; wrong key, incompatible backend, or reset requiring attention pauses auto-sync with a visible reason. Avoid repeated popup dialogs. Retry/load tests should model manual requests and changed intervals during backoff too.
+Implement the scheduler with one replaceable timeout and explicit states: Stopped, Waiting, Syncing, Backoff, Paused/error. Use schedule/connection generation tokens to neutralize stale callbacks. During sleep/offline, accumulate no backlog of missed ticks; on resume/reconnect, do at most one catch-up if still started. Network failures use bounded exponential backoff/jitter; incompatible backend, or reset requiring attention pauses auto-sync with a visible reason. Avoid repeated popup dialogs. Retry/load tests should model manual requests and changed intervals during backoff too.
 
 ### Reset and physical expiry cleanup
 
-Settings Reset tracker data displays the destination deployment/dataset and confirms clearing **all MVP Tracker observation fields**, including those from other players. It pauses scheduling and drains the current request before calling `timers.reset`. Reset is a mutation that clears timer payloads, retains catalog/slot labels, sets reset date, advances generation/revision, and records its idempotency receipt. It does not redeploy code, delete schema/indexes, rotate the group key, or erase unrelated application tables.
+Settings Reset database displays the destination deployment/dataset and confirms clearing **all MVP Tracker observation fields**, including those from other players. It pauses scheduling and drains the current request before calling `timers.reset`. Reset is a mutation that clears timer payloads, retains catalog/slot labels, sets reset date, advances generation/revision, and records its idempotency receipt. It does not redeploy code, delete schema/indexes, or erase unrelated application tables.
 
 Every sync transaction reads generation, so an old-generation request cannot repopulate the dataset after Reset. On a generation change, discard old upload eligibility and refresh local state; do not keep an old kill in the active table and then re-upload it as new. Newly received foreign clipboard records retain their original evidence time and must pass the reset cutoff. A deliberate new manual entry or newly observed grave can repopulate normally. After a user's Reset, auto-sync stays stopped until Start, so clearing the database is visible and predictable.
 
@@ -290,7 +290,7 @@ At one call per interval, uninterrupted polling for 30 days costs approximately 
 
 No-change sync should read small metadata and return unchanged without scanning 594 documents or updating a “last sync” timestamp. Store next expiry in metadata; query changed-revision/expiry indexes only when needed. Send only pending observations; preserve their acknowledged IDs locally. Initial/new-selection/recovery fetches can request snapshots; normal polls should be cheap. Monitor calls, database I/O, egress, and retries with measured payloads during the private beta. A single mutation per ordinary tick avoids a mandatory query-then-mutation round trip.
 
-Use `convex-test` with Vitest for server schema, auth helper, merge/reset logic and scheduled cleanup; keep Bun tests for core/desktop behavior. Mocks do not enforce all backend limits or prove actual concurrent transaction behavior, so later run multi-client tests against a disposable real dev deployment. User will verify the shared cloud connection manually; no cloud deployment/database has been created or reset during planning. [Convex testing](https://docs.convex.dev/testing/convex-test).
+Use `convex-test` with Vitest for server schema, protocol validation, merge/reset logic and scheduled cleanup; keep Bun tests for core/desktop behavior. Mocks do not enforce all backend limits or prove actual concurrent transaction behavior, so later run multi-client tests against a disposable real dev deployment. User will verify the shared cloud connection manually; no cloud deployment/database has been created or reset during planning. [Convex testing](https://docs.convex.dev/testing/convex-test).
 
 ## 7. Clipboard export/import
 
@@ -338,11 +338,11 @@ Versioned JSON plus serialized atomic save/last-known-good recovery is adequate 
 
 Use `data/` and `logs/` beside the portable executable by default. No automatic AppData fallback: if the extracted folder is read-only, show a clear message to move it to a writable folder and do not pretend state was saved. Bundle Bun and app resources; the end user needs no development runtime. A portable upgrade copies preserved nonexpired data/settings into the new extracted version while both versions are closed; do not overwrite a running executable or let two versions capture/write the same data concurrently.
 
-Store the shared group key separately from transferable timer/settings exports; never include it in release assets or diagnostics. Full portable folder copies containing the secrets file intentionally copy group access too. Convex deployment credentials belong only on the owner/developer machine and never ship with the desktop app.
+Only the owner needs Convex deployment credentials; they never ship with the desktop. Players configure the URL in Settings. No group key or integration environment is needed.
 
 Essential structured logs: UTC timestamp, severity/event code, app/tool version, local correlation ID, sanitized error/stack, and bounded counts/durations. Log lifecycle transitions, meaningful capture health changes, decoder/schema failures, storage/migration problems, sync/reset outcomes, clock anomalies, and import failures. Deduplicate repeated warnings. Do not log every packet, timer tick, repeated grave, or normal game-not-running state repeatedly.
 
-Do not log raw game traffic, shared group/deployment keys, full private deployment connection details, clipboard payloads, killer/player names, IPs, usernames, or personal absolute paths by default. Killer names belong in the tracker and authorized exports, not diagnostic logs. Sanitize external error messages. Proposed caps: 2 MiB per file, five rotating files, seven days maximum age, enforcing both size and age. Log failures/disk full must not crash capture.
+Do not log raw game traffic, deployment credentials, full private deployment connection details, clipboard payloads, killer/player names, IPs, usernames, or personal absolute paths by default. Killer names belong in the tracker and authorized exports, not diagnostic logs. Sanitize external error messages. Proposed caps: 2 MiB per file, five rotating files, seven days maximum age, enforcing both size and age. Log failures/disk full must not crash capture.
 
 Provide Open logs and Export sanitized diagnostics with versions, adapter/health summaries, and bounded recent errors. Optional diagnostics is time-limited and automatically disables; raw packet collection is not a default feature. Do not auto-upload diagnostics.
 
@@ -355,12 +355,12 @@ After every completed step: run its relevant checks, update progress in this fil
 ### Step 0 — Record decisions and prepare the repository
 
 - [x] Replace the proposal with this `plan.md` and remove answered questions/the obsolete file.
-- [x] Resolve shared access: Convex development deployment plus an optional shared group key; Google integration removed.
+- [x] Resolve shared access: URL-only Convex development deployment; Google integration removed.
 - [x] Configure repository-local Git author as Luis Fernando with the supplied email. No global Git identity changes.
 - [x] Prepare the revised Convex/character/auto-sync plan for this documentation step. Commit/push message: `docs: plan Convex sync and character attribution`.
 - [x] Reverify published dependencies and upstream compatibility before copying code; record licenses/provenance in `dependency-provenance.md` (2026-09-10).
 
-Gate: an agreed specification and the plan in the intended repository. A concrete owner-created Convex deployment and key are needed later for live integration, not to finish local implementation or internal tests.
+Gate: an agreed specification and the plan in the intended repository. A concrete owner-created Convex deployment is needed later for live validation, not to finish local implementation or internal tests.
 
 ### Step 1 — Minimal portable Windows shell
 
@@ -418,30 +418,30 @@ Gate: two independent states exchange data repeatedly without duplicate/freshnes
 
 - [x] Add Convex schema/functions/generated types and documented owner setup targeting a cloud development deployment with `npx convex dev --once`.
 - [x] Implement key-checked Test/snapshot/sync/reset functions, indexed slots, revisions/deltas, transactional merges, attribution, reset generation, and bounded idempotency.
-- [x] Implement client URL/key settings, secrets exclusions, sender display/fallback, initialization/version errors, and connection-generation protection.
-- [x] Add convex-test/Vitest validation and a separate disposable deployment configuration for integration tests; keep the shared group deployment intact.
+- [x] Implement client URL settings, secrets exclusions, sender display/fallback, initialization/version errors, and connection-generation protection.
+- [x] Add convex-test/Vitest validation. The later URL-only follow-up removes the separate integration environment/harness; real group validation remains manual.
 
-Gate: missing/wrong keys fail closed; valid candidates merge without clobbering unselected slots; repeated requests preserve attribution; no player needs npm or a deploy key. Test mocks and live checks are clearly distinguished. Commit/push.
+Gate: incompatible protocols reject; valid candidates merge without clobbering unselected slots; repeated requests preserve attribution; no player needs npm or a deploy key. Test mocks and live checks are clearly distinguished. Commit/push.
 
-**Complete (0.1.6).** Convex schema/functions, authorization, initialization, transactional merge/reset, revision deltas and attribution are implemented. Settings now saves/tests a separate URL/key connection with cancellation and safe errors. TypeScript, 50 Bun tests and 6 Convex tests pass. See docs/step-6-verification.md and docs/convex-setup.md. Disposable integration is configured but not run; no live deployment was created or reset. Step 7 retains UI sync/reset coordination and idle expiry scheduling.
+**Complete (0.1.6).** Convex schema/functions, authorization, initialization, transactional merge/reset, revision deltas and attribution are implemented. Settings now saves/tests a separate URL connection with cancellation and safe errors. TypeScript, 50 Bun tests and 6 Convex tests pass. See docs/step-6-verification.md and docs/convex-setup.md. Historical Step 6 added a disposable harness, since removed; no live deployment was created or reset. Step 7 retains UI sync/reset coordination and idle expiry scheduling.
 
 ### Step 7 — Manual/automatic sync, reset, and expiry
 
 - [x] Implement one shared manual/automatic sync coordinator, six intervals (10s/20s/30s/1m/2m/5m), Start/Stop, next-sync display, coalescing, live interval changes, backoff, sleep/reconnect, and safe shutdown.
 - [x] Implement atomic delta application/acknowledgements, capture/edit-during-sync handling, no-op polling optimization, and bounded reset receipts.
 - [x] Add confirmed reset mutation and next-expiry scheduled cleanup; generation checks protect new data against old requests/jobs.
-- [x] Verify sender snapshots, no fabricated identity, wrong-key pause, and reset leaving auto-sync stopped.
+- [x] Verify sender snapshots, no fabricated identity, version-error pause, and reset leaving auto-sync stopped.
 
 Gate: deterministic scheduler/backend tests pass; manual sync can run alongside automatic mode without overlapping calls; stale-generation sync/reset retries cannot erase or resurrect new observations. Measure traffic for 42 and 594 slots. Commit/push.
 
-**Complete (0.1.7).** Fixed request-validation replies, optional key/name, persistent Sharing saves and log controls. Added serialized manual/automatic sync, durable delta acknowledgements, reset recovery and scheduled server expiry. TypeScript, 61 Bun tests and 10 Convex tests pass. Full/idle payloads measured for 42 and 594 slots. See docs/step-7-verification.md. Live cloud writes, desktop/log-folder launch and multiplayer validation remain with the user in Step 8.
+**Complete (0.1.7).** Fixed request-validation replies, optional key/name, persistent Sharing saves and log controls. Added serialized manual/automatic sync, durable delta acknowledgements, reset recovery and scheduled server expiry. TypeScript, 61 Bun tests and 10 Convex tests pass. Full/idle payloads measured for 42 and 594 slots. See docs/step-7-verification.md and the later URL-only follow-up docs/step-7-url-only.md. Live cloud writes, desktop/log-folder launch and multiplayer validation remain with the user in Step 8.
 
 ### Step 8 — Windows and private-group validation
 
 - [ ] Improve sanitized logs with operation/method, request correlation ID, elapsed time, app/component version/state and bounded error categories. Keep rotation/retention and exclude keys, names, private URLs, packet/clipboard data and complete function arguments. Add useful connection failure context without raw remote exceptions; verify Open logs and Clear logs on Windows.
 
 - [ ] Run the matrix below; fix discovered failures and record exact tested Windows/runtime versions.
-- [ ] Have the user manually test the real shared Convex development URL/key, sender names, multiple players, interval changes, Start/Stop, and reset; exercise actual transaction races on a disposable deployment.
+- [ ] Have the user manually test the real shared Convex development URL, sender names, multiple players, interval changes, Start/Stop, and reset; exercise actual transaction races on a disposable deployment.
 - [ ] Validate fresh grave, revisit, channel/region transition, game restart, Npcap failure, tray capture, sleep/resume, DPI, and portable upgrade on Windows 11.
 - [ ] Inspect logs/exports/package for accidental credentials or local data; write concise setup/troubleshooting instructions.
 
@@ -472,11 +472,11 @@ Use Bun tests for the core/desktop and synthetic capture fixtures, plus convex-t
 | Persistence | Save/restart, atomic-write interruption, backup recovery, invalid schema/migration, read-only portable folder, disk full, next-day stale cleanup, cleared payloads not retained indefinitely in backups. |
 | Text | Kill time rather than respawn time, 24-hour format, `UTC-3` headers, exact abbreviations, no uncertainty symbols, only selected Dark Fortress bosses, chronological midnight ordering, empty output. |
 | JSON/compression | Killer retained, UTF-8 round trip, immutable gathered timestamps, no credentials, invalid base64/gzip/version/size/nesting/channels, decompression limit, rejected text import, cancel/no mutation. |
-| Convex connection | Empty/invalid URL/key, wrong origin, missing functions/init, schema version, group-key checks in every public endpoint, key rotation, URL/key change during request, no credentials in exports/logs. |
+| Convex connection | Empty/invalid URL, wrong origin, missing functions/init, schema version, protocol checks in every public endpoint, URL change during request, no credentials in exports/logs. |
 | Attribution | Live local character vs inspected player; cached/manual fallback; no name uploads with null attribution; switch during request; killer vs observer vs sender; imported provenance retained; duplicates do not churn submitter metadata. |
 | Convex mutations | Indexed upserts preserve one slot; validation before commit, selected-only uploads preserve other slots, monotonic revisions, unchanged response without writes/full scan, full snapshot/delta recovery, physical expiry clearing. |
 | Scheduler | All six intervals (10s/20s/30s/1m/2m/5m); no 10m option; default stopped; Start immediate sync; manual F9 during auto/active requests; at most one follow-up; live interval change while waiting/syncing/backoff; Stop prevents future retry; tray continuation; no restart/sleep backlog. |
-| Concurrency | Two/many writers same/different slots, transactional latest-evidence merge, response loss/idempotent retry, local observations arriving mid-sync, watermark atomicity, key errors/quota/offline backoff. |
+| Concurrency | Two/many writers same/different slots, transactional latest-evidence merge, response loss/idempotent retry, local observations arriving mid-sync, watermark atomicity, version errors/quota/offline backoff. |
 | Reset/cleanup | Confirmation, generation advance, simultaneous old sync rejected or cleared before reset, duplicate Reset cannot erase post-reset data, old JSON cutoff, delayed cleanup cannot clear newer cycle, unrelated tables untouched. |
 | Logs | Meaningful failures/versions retained, warning throttling, byte/age caps, no raw packets/tokens/killer names/private URLs, disk failures do not stop capture. |
 | Package | Correct x64 shell/Bun/assets/hotkey helper/version/DPI, no local state/secrets/research, missing-prerequisite guidance, clean-machine launch/Exit, portable upgrade. |
@@ -499,13 +499,13 @@ Adapt upstream's [release workflow](https://github.com/kar-mi/spirit-vale-overla
 
 Npcap remains a separately installed prerequisite, with upstream's WinPcap-compatible installation guidance; Neutralino needs a compatible WebView2 runtime. Test and document these system prerequisites even though the application itself is portable. No bundled Npcap installer, code signing, Windows 10/ARM64 builds, Electron release, or application installer is required for version 1. No auto-update binary replacement is required.
 
-CI must also check Convex generated API/schema compatibility and run the server test suite. Publishing a desktop release does not automatically run development deployment or Reset against the live group. Ship matching backend source/protocol version and owner update instructions; deploy compatible backend changes to the selected cloud dev deployment as a separate explicit step. Never include `.env.local`, the shared group key, or Convex deploy credentials in Windows artifacts or public CI output.
+CI must also check Convex generated API/schema compatibility and run the server test suite. Publishing a desktop release does not automatically run development deployment or Reset against the live group. Ship matching backend source/protocol version and owner update instructions; deploy compatible backend changes to the selected cloud dev deployment as a separate explicit step. Never include `.env.local`, Convex deploy credentials in Windows artifacts or public CI output.
 
 ## 12. Far-future backlog
 
 Keep these outside the current implementation scope:
 
-- Convex production deployment, individual identity/roles, separate viewer/admin capabilities, and group-key management beyond the initial shared-key model.
+- Convex production deployment and optional future individual identity/roles or separate viewer/admin capabilities. Current access is URL-only.
 - Optional realtime subscriptions if they improve traffic/UX over timed sync; retain clear user control of background activity.
 - A read-only shared web view for people without the desktop application. Version 1 provides compact text sharing and owner inspection through Convex Dashboard instead of the removed spreadsheet view.
 - User-selectable timezones and richer cross-zone UI; retain UTC data compatibility now.

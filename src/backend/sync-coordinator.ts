@@ -112,11 +112,18 @@ export class SyncCoordinator {
   private scheduleFollowup() { this.cancelTimer(); const epoch = this.epoch; this.timer = this.clock.set(() => { this.timer = undefined; if (epoch === this.epoch) void this.run(); }, 0); }
   async reset(expected: Dataset) {
     if (this.resetting) throw new Error("Sharing: a reset is already in progress.");
+    const epoch = this.epoch;
     this.resetting = true; this.stop(); this.state.phase = "resetting"; this.publish();
     try {
     await this.task;
-    const cache = this.cache();
-    if (!cache || cache.dataset.datasetId !== expected.datasetId || cache.dataset.generation !== expected.generation) throw new Error("Sharing: dataset changed. Sync and confirm the current destination again.");
+    if (epoch !== this.epoch) throw new Error("Sharing: connection changed. Test and confirm the destination again.");
+    let cache = this.cache();
+    if (!cache || cache.dataset.datasetId !== expected.datasetId || cache.dataset.generation !== expected.generation) {
+      // Reset can follow Test/Save directly, without first uploading local timers.
+      const info = await this.transport.discover();
+      if (epoch !== this.epoch || info.dataset?.datasetId !== expected.datasetId || info.dataset.generation !== expected.generation) throw new Error("Sharing: dataset changed. Test and confirm the destination again.");
+      cache = { connectionId: connectionId(this.transport.credentials()), selection: "", dataset: info.dataset, known: {} };
+    }
     const pending = cache.resetRequest ? cache : { ...cache, resetRequest: { id: crypto.randomUUID(), dataset: expected } };
     this.store.checkpoint(pending); this.state.resetPending = true; this.state.busy = true; this.state.phase = "resetting"; this.publish();
     try { await this.finishReset(pending, this.epoch); }

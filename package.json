@@ -9,13 +9,12 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "setup": "neu update",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p convex/tsconfig.json",
     "test": "bun test ./tests",
     "build": "bun scripts/build.ts && neu build",
     "dev": "bun run build && bun scripts/run.ts",
     "package": "bun run build && bun scripts/package.ts",
     "test:convex": "vitest run",
-    "test:convex:integration": "bun --env-file=.env.integration scripts/convex-integration.ts",
     "convex:types": "bun scripts/convex-codegen-offline.ts",
     "check": "bun run typecheck && bun run test && bun run test:convex"
   },
@@ -32,6 +31,7 @@
     "@types/bun": "1.3.10",
     "convex-test": "0.0.57",
     "typescript": "7.0.2",
-    "vitest": "5.0.0"
+    "vitest": "5.0.0",
+    "@types/node": "22.20.2"
   }
 }
