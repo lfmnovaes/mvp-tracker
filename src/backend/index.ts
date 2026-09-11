@@ -5,6 +5,7 @@ import { Logger } from "./logger";
 import { TimerStore } from "./timer-store";
 import { CaptureService } from "./capture-service";
 import { emptyCapture } from "../shared/capture";
+import { Diagnostics } from "./diagnostics";
 import { compareEvidence, parseObservation, slotKey, type Observation } from "../domain/timers";
 import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, type Snapshot, type Update, type Action } from "../shared/protocol";
 
@@ -18,6 +19,7 @@ let store: SettingsStore;
 let logger: Logger;
 let timers: TimerStore;
 let capture: CaptureService | undefined;
+const diagnostics = new Diagnostics();
 const pendingObservations = new Map<string, Observation>();
 function flushObservations() {
   if (!pendingObservations.size) return false;
@@ -93,6 +95,27 @@ native.on(REQUEST, raw => {
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
       let result: unknown = null;
       switch (request.method) {
+        case "saveManual": {
+          flushObservations();
+          if (request.input.mode === "edit" && !timers.selectedSnapshot().some(s => slotKey(s) === slotKey(request.input.entry))) throw new Error("Invalid edit: this timer is no longer available.");
+          timers.saveManual({ ...request.input.entry, observedByCharacter: capture?.snapshot().identity.name });
+          state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
+          result = state; await publish({ type: "snapshot", value: state }); break;
+        }
+        case "diagnostics": {
+          if (request.input === "open") {
+            const explorer = Bun.spawn(["explorer.exe", join(root, "logs")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: true });
+            explorer.unref(); result = "Opened the logs folder.";
+          } else if (request.input === "copy") {
+            await native.call("clipboard.writeText", { data: diagnostics.report(state, logger.recent(), Date.now()) }); result = "Sanitized diagnostics copied to the clipboard.";
+          } else {
+            if (request.input === "start") diagnostics.start(Date.now()); else diagnostics.stop();
+            state.diagnosticsUntil = diagnostics.until;
+            result = request.input === "start" ? "Health sampling started for five minutes." : "Health sampling stopped.";
+            await publish({ type: "snapshot", value: state });
+          }
+          break;
+        }
         case "captureRestart": void capture?.restart(); break;
         case "hotkeyCapture": send("capture", { active: request.input }); break;
         case "snapshot":
@@ -110,7 +133,7 @@ native.on(REQUEST, raw => {
           timers.setSelection(request.input.tracking); state.timers = timers.selectedSnapshot();
           capture?.configure(request.input.capture); state.capture = capture?.snapshot() ?? emptyCapture();
           state.warning = timers.warning ?? store.warning; logger.write("settings-saved");
-          send("configure", { hotkeys: state.settings.hotkeys }); result = state; break;
+          if (companion?.exitCode === null) send("configure", { hotkeys: state.settings.hotkeys }); result = state; break;
         case "shell":
           if (request.input === "exit") { void exitApp(); return; }
           if (!companion || companion.exitCode !== null) {
@@ -130,7 +153,7 @@ native.on(REQUEST, raw => {
     } catch (error) {
       logger?.write("rpc-failed");
       // Only our deliberate validation/storage errors reach the UI; native payloads never do.
-      const message = error instanceof Error && /^(Invalid|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
+      const message = error instanceof Error && /^(Invalid|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
         ? error.message : "The action failed. Please retry or restart MVP Tracker.";
       if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: message } }).catch(() => {});
     }
@@ -142,7 +165,7 @@ async function initialize(trayReady: boolean) {
   const settings = store.load();
   timers = new TimerStore(root, settings.tracking);
   state = { version: VERSION, settings, storageWritable: store.writable,
-    warning: timers.warning ?? store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {}, timers: timers.selectedSnapshot(), capture: emptyCapture() };
+    warning: timers.warning ?? store.warning ?? (!logger.available ? "Logs cannot be saved in this portable folder." : null), trayReady, hotkeyErrors: {}, timers: timers.selectedSnapshot(), capture: emptyCapture(), diagnosticsUntil: 0 };
   capture = new CaptureService(settings.capture, observation => {
     const key = slotKey(observation), pending = pendingObservations.get(key);
     if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);
@@ -165,6 +188,9 @@ async function initialize(trayReady: boolean) {
     const captureState = capture?.snapshot() ?? emptyCapture();
     const captureChanged = JSON.stringify(captureState) !== JSON.stringify(state.capture);
     state.capture = captureState;
+    diagnostics.tick(state, Date.now());
+    const diagnosticsChanged = state.diagnosticsUntil !== diagnostics.until;
+    state.diagnosticsUntil = diagnostics.until;
     if (++cleanupTicks % 30 === 0) timers.flush();
     const warningChanged = timerWarning !== timers.warning;
     if (warningChanged) {
@@ -172,7 +198,7 @@ async function initialize(trayReady: boolean) {
       if (timers.warning || state.warning === timerWarning) state.warning = timers.warning ?? store.warning;
       timerWarning = timers.warning;
     }
-    if (changed || warningChanged || captureChanged) {
+    if (changed || warningChanged || captureChanged || diagnosticsChanged) {
       state.timers = timers.selectedSnapshot();
       if (timers.warning) state.warning = timers.warning;
       void publish({ type: "snapshot", value: state }).catch(() => {});

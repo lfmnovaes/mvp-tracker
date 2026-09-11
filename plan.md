@@ -395,11 +395,13 @@ Gate: synthetic capture fixtures pass. Real packet cadence/revisits/region switc
 
 ### Step 4 — Complete tracker and Settings interactions
 
-- [ ] Implement sortable/filterable table, visible killer, capture strip, details, Outdated/empty states, footer controls.
-- [ ] Implement Add/Edit kill date/time, AM/PM default, optional 24-hour display, selected-boss/region/channel dropdowns, Save-time evidence stamps.
-- [ ] Complete scrollable boss/region settings, disabled timezone selector, scale, hotkeys, start minimized, diagnostics, and Exit.
+- [x] Implement sortable/filterable table, visible killer, capture strip, details, Outdated/empty states, footer controls.
+- [x] Implement Add/Edit kill date/time, AM/PM default, optional 24-hour display, selected-boss/region/channel dropdowns, Save-time evidence stamps.
+- [x] Complete scrollable boss/region settings, disabled timezone selector, scale, hotkeys, start minimized, diagnostics, and Exit.
 
 Gate: all local flows work with fixtures/capture disabled, keyboard navigation and input validation pass, and live updates preserve focus. Commit/push.
+
+**2026-09-10 status: Complete (0.1.4).** Add/Edit is wired through validated backend requests and the existing timer store, with explicit time formats and preview, fixed Edit slots, automatic confirmation timestamps, row Details, explicit region/channel filters, focus-preserving draft/row state, interface scale and sanitized diagnostics. TypeScript and 36 focused tests (260 assertions) pass; Windows build/package checks are recorded in `docs/step-4-verification.md`. Per the user's testing policy, actual desktop keyboard/focus/scale and live game tests remain deferred to the user, not reported as passed. Clipboard and Convex footer controls remain disabled until Steps 5–7.
 
 ### Step 5 — Clipboard exchange
 

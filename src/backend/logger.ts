@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, renameSync, statSync, unlinkSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { CaptureLog } from "./capture-service";
 export type LogEvent = CaptureLog | "started" | "stopped" | "storage-unavailable" | "settings-saved" | "native-unavailable" | "native-exited" | "rpc-failed" | "frontend-timeout" | "timer-storage-unavailable" | "timer-storage-restored" | "fatal";
@@ -25,5 +25,23 @@ export class Logger {
       }
       appendFileSync(this.file(0), line);
     } catch { this.available = false; }
+  }
+  recent(): { time: string; event: string }[] {
+    const allowed = new Set<string>(["started", "stopped", "storage-unavailable", "settings-saved", "native-unavailable", "native-exited", "rpc-failed", "frontend-timeout", "timer-storage-unavailable", "timer-storage-restored", "fatal", "capture-started", "capture-unavailable", "capture-recovery", "capture-warning", "capture-packet-rejected"]);
+    const result: { time: string; event: string }[] = [];
+    for (let i = 0; i < this.maxFiles && result.length < 100; i++) {
+      try {
+        const file = this.file(i); if (statSync(file).size > this.maxBytes) continue;
+        for (const line of readFileSync(file, "utf8").trim().split("\n").reverse()) {
+          try {
+            const row = JSON.parse(line);
+            if (allowed.has(row.event) && typeof row.time === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(row.time)
+              && Number.isFinite(Date.parse(row.time)) && Date.now() - Date.parse(row.time) <= this.maxAge) result.push({ time: row.time, event: row.event });
+          } catch { /* A damaged line must not prevent a safe report. */ }
+          if (result.length === 100) break;
+        }
+      } catch { /* Missing/rotated logs are optional diagnostics. */ }
+    }
+    return result.reverse();
   }
 }
