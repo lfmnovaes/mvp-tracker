@@ -23,7 +23,7 @@ await copyFile("src/ui/style.css", "resources/style.css");
 await copyFile(process.execPath, "extensions/bin/bun.exe");
 await run(["powershell.exe", "-NoProfile", "-File", "scripts/icon.ps1"]);
 const csc = join(process.env.WINDIR ?? "C:/Windows", "Microsoft.NET/Framework64/v4.0.30319/csc.exe");
-await run([csc, "/nologo", "/optimize+", "/platform:x64", "/target:exe", `/out:${join(root, "extensions/bin/mvp-shell.exe")}`, `/win32icon:${join(root, "extensions/bin/icon.ico")}`, "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll", "/reference:System.Web.Extensions.dll", join(root, "native/ShellHost.cs")]);
+await run([csc, "/nologo", "/optimize+", "/platform:x64", "/target:exe", `/out:${join(root, "extensions/bin/mvp-shell.exe")}`, `/win32icon:${join(root, "extensions/bin/icon.ico")}`, "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll", "/reference:System.Web.Extensions.dll", join(root, "native/ShellHost.cs"), join(root, "native/WindowPlacement.cs")]);
 // Include the bundled frontend dependency licenses, plus native runtime notices.
 await mkdir("resources/licenses", { recursive: true });
 for (const name of ["preact", "@neutralinojs/lib", "convex"]) {

@@ -1,6 +1,8 @@
 # MVP Tracker — implementation plan
 
-Updated 11 September 2026. Steps 0–7 and Step 8 engineering checks are complete (app version 0.1.8); Step 8 user acceptance remains pending. Players use only the Settings URL, with optional character name. Sharing protocol 2 requires matching owner-deployed functions. Both TypeScript projects and 81 unit tests pass. This update changes no Convex functions or schema. See docs/step-8-verification.md and docs/windows-validation.md.
+Updated 11 September 2026. Steps 0–7 and Step 8 engineering checks are complete (app version 0.1.8.1); Step 8 user acceptance remains pending. Players use only the Settings URL, with optional character name. Sharing protocol 2 requires matching owner-deployed functions. Both TypeScript projects and 84 unit tests pass. This update changes no Convex functions or schema. See docs/0.1.8.1-verification.md and docs/windows-validation.md.
+
+0.1.8.1 follow-up: explicitly persist normal window bounds and monitor in `data/window.json`, restore monitor-relative coordinates and recover to the primary screen when disconnected. Status ascending order is Spawned → Spawn window → Waiting → Outdated → No data. Changed rows use a two-second highlight/fade, including gathered-only refreshes; unchanged snapshots do not restart it. Gathered time has ten 15-minute green/yellow/orange/red bands and an eleventh muted-red Outdated state. Retain only local release artifacts for 0.1.8 and 0.1.8.1.
 
 ## 1. Agreed scope
 

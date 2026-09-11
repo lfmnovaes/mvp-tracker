@@ -20,7 +20,7 @@ let ready = false;
 let uiReady = false;
 let companion: ReturnType<typeof Bun.spawn> | undefined;
 let store: SettingsStore;
-let logger: Logger;
+let logger!: Logger;
 let timers: TimerStore;
 let capture: CaptureService | undefined;
 let sharing: SharingConnection;
@@ -54,6 +54,7 @@ async function shellAction(action: string) {
   if (action === "sync") { sync?.request(); return; }
   if (action === "exit") { void exitApp(); return; }
   if (action === "toggle") action = await native.call<boolean>("window.isVisible") && !await native.call<boolean>("window.isMinimized") ? "hide" : "show";
+  if (["hide", "minimize"].includes(action) && companion?.exitCode === null) send("remember");
   if (action === "hide") {
     if (state?.trayReady) await native.call("window.hide");
     else await showFallback();
@@ -299,7 +300,10 @@ try {
           await publish({ type: "snapshot", value: state });
         } else if (message.type === "action") {
           if (["exit", "settings", "add", "sync", "show", "hide", "toggle", "minimize"].includes(String(message.action))) await shellAction(String(message.action));
-        } else if (message.type === "warning" && ready) await publish({ type: "snapshot", value: state });
+        } else if (message.type === "warning" && ready) {
+          if (message.message === "window-placement-unavailable") logger.write("storage-unavailable", { component: "native", category: "storage" });
+          await publish({ type: "snapshot", value: state });
+        }
       }
     }
   })().catch(() => { logger?.write("native-unavailable"); });

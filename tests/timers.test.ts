@@ -190,7 +190,7 @@ test("a failed disk save retains in-memory observations and retries without data
 test("search isolates region/channel tokens and sorting uses numeric/time fields", () => {
   const records = [observation("waiting", { channel: 1, diedAt: now - 20 * MINUTE, killedBy: "Luís" }), observation("window", { channel: 2 }), observation("spawned", { channel: 3, diedAt: now - 100 * MINUTE })];
   const slots = mergeObservations([], records, now);
-  expect(queryTimers(slots, defaultSelection(), now).map(r => r.slot.channel)).toEqual([2, 1, 3]);
+  expect(queryTimers(slots, defaultSelection(), now).map(r => r.slot.channel)).toEqual([3, 2, 1]);
   expect(queryTimers(slots, defaultSelection(), now, { search: "paladin sa ch2 dark fortress" }).map(r => r.slot.channel)).toEqual([2]);
   expect(queryTimers(slots, defaultSelection(), now, { search: "region:nova killer:luis" }).map(r => r.slot.channel)).toEqual([1]);
   expect(queryTimers(slots, defaultSelection(), now, { search: "ch:155" })).toEqual([]);

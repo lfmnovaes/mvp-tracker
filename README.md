@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.8**. Local tracking works without Convex.
+Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.8.1**. Local tracking works without Convex.
 
 ## First run
 
@@ -10,11 +10,13 @@ Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.8*
 
 ## Subsequent runs
 
-Open **MVP Tracker.exe** again; settings, window position and current timers are restored. X hides to tray; use tray → Exit to quit. F7 shows/hides, F8 adds a timer, F9 syncs. Start enables automatic sync; it starts stopped each launch. Reset database asks for confirmation and clears everyone's tracker observations.
+Open **MVP Tracker.exe** again; settings, window position/monitor/size and current timers are restored. If the saved monitor is disconnected, the window returns to the primary screen. X hides to tray; use tray → Exit to quit. F7 shows/hides, F8 adds a timer, F9 syncs. Start enables automatic sync; it starts stopped each launch. Reset database asks for confirmation and clears everyone's tracker observations.
 
 For upgrades, Exit first, replace the application files, and keep your `data/` folder. Expired observations are discarded after 150 minutes. [Sharing details](docs/convex-setup.md).
 
 **Delete outdated** in the footer removes expired local and database rows while preserving current observations. It works locally without a URL; a database failure is reported separately. Deploy the latest backend once to enable shared cleanup.
+
+Status sorting puts Spawned before Spawn window and Waiting. Updated rows briefly highlight; Gathered at runs from green to red in ten 15-minute freshness bands. Outdated uses muted red and discards its old timestamp.
 
 ## Run from source
 
@@ -44,4 +46,4 @@ Reset clears tracker data and restores metadata for the deployed backend; schema
 
 For errors, use Settings → Capture & diagnostics → Copy diagnostics. [Troubleshooting](docs/troubleshooting.md) · [User validation checklist](docs/windows-validation.md).
 
-Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/step-8-verification.md).
+Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/0.1.8.1-verification.md).

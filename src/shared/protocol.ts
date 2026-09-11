@@ -8,7 +8,7 @@ import { parseConnection, type Connection, type ConnectionStatus } from "./shari
 import type { SyncStatus } from "../backend/sync-coordinator";
 import { parseDataset } from "../domain/sync";
 import type { Dataset } from "./sharing";
-export const VERSION = "0.1.8";
+export const VERSION = "0.1.8.1";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";

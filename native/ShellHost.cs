@@ -20,6 +20,7 @@ class ShellHost : Form {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder text, int length);
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+    [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr h);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int mode);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] static extern bool SetProcessDpiAwarenessContext(IntPtr context);
@@ -40,6 +41,10 @@ class ShellHost : Form {
     DateTime captureDeadline;
     Dictionary<string, object> savedKeys;
     int ticks;
+    readonly string placementFile;
+    bool placementRestored;
+    bool restoreRequested;
+    string lastPlacement;
     static readonly object outputLock = new object();
     static int ParentPid(Process process) {
         BasicInfo info = new BasicInfo();
@@ -67,6 +72,7 @@ class ShellHost : Form {
     }
     ShellHost(int backendPid, string icon, EventWaitHandle activate) {
         backend = Process.GetProcessById(backendPid); owner = FindOwner(backend); activation = activate;
+        placementFile = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(icon), "..", "..", "data", "window.json"));
         ShowInTaskbar = false; FormBorderStyle = FormBorderStyle.None; Opacity = 0; Size = new Size(1, 1);
         // Force a stable message handle for registered hotkeys and the reader thread.
         IntPtr handle = Handle;
@@ -87,7 +93,12 @@ class ShellHost : Form {
             if (++ticks % 4 == 0) {
                 if (backend.HasExited || owner.HasExited) { Finish(true); return; }
                 // Recover the titlebar after monitor changes; WinForms repairs the tray after TaskbarCreated.
-                IntPtr window = Window(); if (window != IntPtr.Zero && IsWindowVisible(window) && !IsIconic(window)) Recover(window);
+                IntPtr window = Window();
+                if (restoreRequested && window != IntPtr.Zero) Restore(window);
+                if (placementRestored && window != IntPtr.Zero && !IsIconic(window)) {
+                    if (IsWindowVisible(window)) Recover(window);
+                    Remember(window);
+                }
             }
         };
         timer.Start();
@@ -132,6 +143,40 @@ class ShellHost : Form {
         int width = Math.Min(r.right - r.left, area.Width), height = Math.Min(r.bottom - r.top, area.Height);
         SetWindowPos(window, IntPtr.Zero, area.Left + Math.Max(0, (area.Width - width) / 2), area.Top + Math.Max(0, (area.Height - height) / 2), width, height, 0x0014);
     }
+    void Restore(IntPtr window) {
+        Rect r;
+        if (placementRestored || !GetWindowRect(window, out r) || r.left > 9999) return;
+        placementRestored = true;
+        try {
+            if (!File.Exists(placementFile) || new FileInfo(placementFile).Length > 4096) return;
+            SavedWindow saved = json.Deserialize<SavedWindow>(File.ReadAllText(placementFile));
+            if (saved == null || !saved.Valid()) return;
+            Screen monitor = Array.Find(Screen.AllScreens, s => s.DeviceName == saved.Monitor);
+            Rectangle bounds = WindowPlacement.Restore(saved, (monitor ?? Screen.PrimaryScreen).WorkingArea, monitor != null);
+            SetWindowPos(window, IntPtr.Zero, bounds.X, bounds.Y, bounds.Width, bounds.Height, 0x0014);
+        } catch { Emit(new { type = "warning", message = "window-placement-unavailable" }); }
+    }
+    void Remember(IntPtr window) {
+        Rect r;
+        if (!placementRestored || window == IntPtr.Zero || IsIconic(window) || IsZoomed(window) || !GetWindowRect(window, out r)) return;
+        Rectangle bounds = Rectangle.FromLTRB(r.left, r.top, r.right, r.bottom);
+        Screen screen = Screen.FromRectangle(bounds);
+        // Do not persist initialization/minimization coordinates or an invisible titlebar.
+        Rectangle title = Rectangle.Intersect(screen.WorkingArea, new Rectangle(bounds.X, bounds.Y, bounds.Width, 44));
+        if (title.Width < 180 || title.Height < 30) return;
+        SavedWindow saved = new SavedWindow { Monitor = screen.DeviceName, X = bounds.X, Y = bounds.Y,
+            Width = bounds.Width, Height = bounds.Height, WorkX = screen.WorkingArea.X, WorkY = screen.WorkingArea.Y };
+        if (!saved.Valid()) return;
+        string text = json.Serialize(saved);
+        if (text == lastPlacement) return;
+        try {
+            Directory.CreateDirectory(Path.GetDirectoryName(placementFile));
+            File.WriteAllText(placementFile + ".tmp", text);
+            if (File.Exists(placementFile)) File.Replace(placementFile + ".tmp", placementFile, null);
+            else File.Move(placementFile + ".tmp", placementFile);
+            lastPlacement = text;
+        } catch { Emit(new { type = "warning", message = "window-placement-unavailable" }); }
+    }
     void Act(string action) {
         // Neutralino owns WebView visibility state. Do not bypass it with ShowWindow.
         Emit(new { type = "action", action = action });
@@ -163,7 +208,8 @@ class ShellHost : Form {
             Dictionary<string, object> data = json.Deserialize<Dictionary<string, object>>(line);
             string command = data["command"] as string;
             if (command == "exit") Finish(false);
-            else if (command == "recover") { IntPtr window = Window(); if (window != IntPtr.Zero) Recover(window); }
+            else if (command == "recover") { restoreRequested = true; IntPtr window = Window(); if (window != IntPtr.Zero) { Restore(window); Recover(window); Remember(window); } }
+            else if (command == "remember") Remember(Window());
             else if (command == "capture") {
                 capturing = (bool)data["active"]; captureDeadline = DateTime.UtcNow.AddSeconds(30);
                 if (savedKeys != null) Configure(savedKeys);
@@ -179,6 +225,7 @@ class ShellHost : Form {
     void Emit(object value) { lock (outputLock) { try { Console.WriteLine(json.Serialize(value)); Console.Out.Flush(); } catch { Finish(true); } } }
     void Finish(bool terminateOwner) {
         if (finishing) return; finishing = true; timer.Stop();
+        Remember(Window());
         for (int i = 1; i <= actions.Length; i++) UnregisterHotKey(Handle, i);
         if (tray != null) { tray.Visible = false; tray.Dispose(); }
         if (terminateOwner) {

@@ -28,7 +28,7 @@ export function matchesSearch(row: TimerRow, query: string): boolean {
     return all.includes(token);
   });
 }
-const statusRank: Record<TimerStatus, number> = { window: 0, waiting: 1, spawned: 2, outdated: 3, empty: 4 };
+const statusRank: Record<TimerStatus, number> = { spawned: 0, window: 1, waiting: 2, outdated: 3, empty: 4 };
 function boundary(row: TimerRow): number { return row.slot.observation ? row.slot.observation.diedAt + (row.status === "waiting" ? ELIGIBLE_AFTER : SPAWN_AFTER) : 0; }
 function stable(a: TimerRow, b: TimerRow): number {
   return a.boss.name.localeCompare(b.boss.name, "en") || a.slot.region.localeCompare(b.slot.region, "en") || a.slot.channel - b.slot.channel;

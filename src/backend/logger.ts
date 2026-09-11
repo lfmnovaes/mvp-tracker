@@ -53,7 +53,7 @@ export class Logger {
             const row = JSON.parse(line), age = this.now() - Date.parse(row.time);
             if (LOG_EVENTS.includes(row.event) && typeof row.time === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(row.time) && Number.isFinite(age) && age >= -30000 && age <= this.maxAge) {
               result.push({ time: row.time, event: row.event, ...cleanContext(row),
-                ...(typeof row.version === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(row.version) ? { version: row.version } : {}),
+                ...(typeof row.version === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}(?:\.\d{1,3})?$/.test(row.version) ? { version: row.version } : {}),
                 ...(["info", "warning", "error"].includes(row.level) ? { level: row.level } : {}) });
             }
           } catch { /* Damaged lines never prevent a sanitized report. */ }
