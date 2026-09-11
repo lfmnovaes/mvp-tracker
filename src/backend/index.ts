@@ -126,6 +126,7 @@ native.on(REQUEST, raw => {
         case "syncControl":
           if (request.input === "start") sync.start(); else if (request.input === "stop") sync.stop(); else sync.request();
           result = sync.snapshot(); break;
+        case "pruneOutdated": sync.requestPrune(); result = sync.snapshot(); break;
         case "syncInterval":
           store.save({ ...state.settings, syncInterval: request.input }); state.settings.syncInterval = request.input; sync.setInterval(request.input); result = state; break;
         case "removeTimer": {

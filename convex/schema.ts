@@ -7,7 +7,7 @@ export const observation = v.object({
   submission: v.optional(v.object({ submittedByCharacter: v.union(v.string(), v.null()), serverAcceptedAt: v.number() })),
 });
 export default defineSchema({
-  trackerMeta: defineTable({ singleton: v.literal("tracker"), schema: v.number(), catalog: v.number(), datasetId: v.string(), generation: v.number(), resetAt: v.number(), revision: v.number(), nextExpiry: v.optional(v.number()), cleanupJob: v.optional(v.id("_scheduled_functions")), cleanupToken: v.optional(v.number()) }).index("by_singleton", ["singleton"]),
+  trackerMeta: defineTable({ singleton: v.literal("tracker"), schema: v.number(), catalog: v.number(), datasetId: v.string(), generation: v.number(), resetAt: v.number(), revision: v.number(), prunedRevision: v.optional(v.number()), nextExpiry: v.optional(v.number()), cleanupJob: v.optional(v.id("_scheduled_functions")), cleanupToken: v.optional(v.number()) }).index("by_singleton", ["singleton"]),
   bossTimers: defineTable({ key: v.string(), mobId: v.string(), region: v.string(), channel: v.number(), observation: v.optional(observation), outdated: v.boolean(), revision: v.number(), expiresAt: v.optional(v.number()) })
     .index("by_slot", ["key"]).index("by_revision", ["revision"]).index("by_expiry", ["expiresAt"]).index("by_observation", ["observation.observationId"]),
   resetReceipts: defineTable({ requestId: v.string(), datasetId: v.string(), expectedGeneration: v.number(), generation: v.number(), resetAt: v.number(), revision: v.number() }).index("by_request", ["requestId"]).index("by_time", ["resetAt"]),

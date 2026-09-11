@@ -5,7 +5,8 @@ export interface Connection { url: string }
 export interface Dataset { datasetId: string; generation: number; revision: number; resetAt: number }
 export interface Discovery { app: "mvp-tracker"; protocol: number; schema: number; catalog: number; serverTime: number; dataset: Dataset | null }
 export interface SharedSlot extends TimerSlot { revision: number }
-export interface SyncResult { dataset: Dataset; serverTime: number; full: boolean; slots: SharedSlot[]; acknowledged: string[] }
+export interface SyncResult { dataset: Dataset; serverTime: number; full: boolean; slots: SharedSlot[]; acknowledged: string[]; pruneOutdated?: boolean }
+export interface PruneResult extends SyncResult { removed: number }
 export interface SyncInput { protocol: number; datasetId: string; generation: number; sinceRevision: number | null; requestId: string; sentByCharacter?: string | null; observations: Observation[] }
 export interface ConnectionStatus { configured: boolean; url: string; state: "empty" | "untested" | "testing" | "ready" | "error"; message: string; dataset?: Dataset; testedAt?: number }
 export function parseConnection(raw: unknown): Connection {

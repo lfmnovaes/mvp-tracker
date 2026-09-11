@@ -16,6 +16,7 @@ export function parseSyncCache(raw: SyncCache): SyncCache {
 }
 export function validateSyncResult(raw: SyncResult, now: number): SyncResult {
   const dataset = parseDataset(raw?.dataset);
+  if (raw.pruneOutdated !== undefined && (typeof raw.pruneOutdated !== "boolean" || raw.pruneOutdated && !raw.full)) throw new Error("Sharing: invalid cleanup response.");
   if (!raw || typeof raw.full !== "boolean" || !Number.isSafeInteger(raw.serverTime) || Math.abs(raw.serverTime - now) > 30000 || dataset.resetAt > raw.serverTime || !Array.isArray(raw.slots) || raw.slots.length > MAX_SLOTS || !Array.isArray(raw.acknowledged) || raw.acknowledged.length > MAX_SLOTS) throw new Error("Sharing: invalid sync response or system clock.");
   const keys = new Set<string>();
   const slots = raw.slots.map(row => {
@@ -26,7 +27,7 @@ export function validateSyncResult(raw: SyncResult, now: number): SyncResult {
     return { ...slot, outdated: row.outdated, revision: row.revision, ...(observation ? { observation } : {}) };
   });
   for (const id of raw.acknowledged) if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error("Sharing: invalid acknowledgements.");
-  return { dataset, serverTime: raw.serverTime, full: raw.full, slots, acknowledged: [...raw.acknowledged] };
+  return { dataset, serverTime: raw.serverTime, full: raw.full, slots, acknowledged: [...raw.acknowledged], ...(raw.pruneOutdated ? { pruneOutdated: true } : {}) };
 }
 export function pendingUploads(slots: TimerSlot[], cache: SyncCache | undefined, selection: Selection, now: number): Observation[] {
   return slots.flatMap(s => s.observation && isSelected(s, selection) && s.observation.diedAt + EXPIRE_AFTER > now && s.observation.diedAt > (cache?.dataset.resetAt ?? 0) && cache?.known[slotKey(s)] !== s.observation.observationId ? [s.observation] : []);
@@ -47,5 +48,5 @@ export function applySync(current: TimerSlot[], previous: SyncCache | undefined,
   slots = slots.map(s => s.observation && remote.has(s.observation.observationId) ? { ...s, observation: { ...s.observation, submission: remote.get(s.observation.observationId)!.submission } } : s);
   const labels = new Map(slots.map(s => [slotKey(s), s]));
   for (const row of result.slots) if (!row.observation && isSelected(row, selection) && !labels.has(slotKey(row))) labels.set(slotKey(row), emptySlot(row, row.outdated));
-  return { slots: [...labels.values()], cache: { connectionId, selection: selectionKey, dataset, known } };
+  return { slots: [...labels.values()].filter(s => !result.pruneOutdated || s.observation || !s.outdated), cache: { connectionId, selection: selectionKey, dataset, known } };
 }

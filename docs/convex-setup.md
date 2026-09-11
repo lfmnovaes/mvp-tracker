@@ -36,6 +36,12 @@ At continuous 10-second polling, one client makes about 259,200 scheduled calls 
 
 ## Validation and diagnostics
 
+The footer's **Delete outdated** additionally deletes retained outdated rows locally and across the configured database, including unselected bosses/regions. It rechecks kill timestamps inside the server transaction and preserves current observations. Local cleanup works without a URL; remote failures are reported separately. Cleanup shares the sync queue. A deletion watermark makes clients with older cursors refresh their snapshots instead of keeping deleted outdated labels.
+
+`observation` contains kill/gathered timestamps, killer, observer, source/precision, optional instance/replacement IDs and server submission attribution. `expiresAt` is the indexed expiry timestamp (`observation.diedAt + 150 minutes`) for scheduled cleanup. Both fields are intentionally absent after expiry. Open a current row's nested observation object in the dashboard to inspect its details.
+
+`revision` is a shared change cursor, not a sync-call count or individual row's update count. It advances once per transaction that changes tracker data; all rows changed together share that revision. Identical observations and empty polls do not rewrite records or advance it. New gathered times, expiry, Reset and actual outdated-row deletion do. Existing revision numbers are not reset.
+
 `bun run check` type-checks the desktop and `convex/tsconfig.json`, then runs Bun and convex-test unit tests without a cloud connection. The Convex config explicitly includes Node type definitions, as required for `process` with TypeScript 6+. Runtime group-key/environment reads are now removed as well. [Convex runtime typing](https://docs.convex.dev/functions/runtimes).
 
 There is no `.env.integration.example` or integration command. Manual shared-database checks remain with the user; use an empty temporary deployment if testing destructive scenarios. No automatic test resets the group's real database.

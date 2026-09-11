@@ -63,6 +63,7 @@ export interface Snapshot {
   sync?: SyncStatus;
 }
 export interface Operations {
+  pruneOutdated: { input: null; output: SyncStatus };
   syncControl: { input: "now" | "start" | "stop"; output: SyncStatus };
   syncInterval: { input: number; output: Snapshot };
   sharingReset: { input: Dataset; output: SyncStatus };
@@ -98,7 +99,7 @@ export function parseRequest(raw: unknown): Request {
     case "syncControl": if (!["now", "start", "stop"].includes(r.input)) throw new Error("Invalid sync action."); break;
     case "syncInterval": if (![10, 20, 30, 60, 120, 300].includes(r.input)) throw new Error("Invalid sync interval."); break;
     case "sharingReset": return { ...r, input: parseDataset(r.input) };
-    case "sharingRead": case "sharingTest": if (r.input !== null) throw new Error("Invalid sharing request."); break;
+    case "sharingRead": case "sharingTest": case "pruneOutdated": if (r.input !== null) throw new Error("Invalid sharing request."); break;
     case "sharingSave": return { ...r, input: parseConnection(r.input) };
     case "removeTimer": return { ...r, input: parseSlot(r.input) };
     case "exportTimers": if (!["text", "json", "compressed"].includes(r.input)) throw new Error("Invalid export format."); break;

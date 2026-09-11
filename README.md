@@ -14,6 +14,8 @@ Open **MVP Tracker.exe** again; settings, window position and current timers are
 
 For upgrades, Exit first, replace the application files, and keep your `data/` folder. Expired observations are discarded after 150 minutes. [Sharing details](docs/convex-setup.md).
 
+**Delete outdated** in the footer removes expired local and database rows while preserving current observations. It works locally without a URL; a database failure is reported separately. Deploy the latest backend once to enable shared cleanup.
+
 ## Run from source
 
 Install Bun **1.4.2** and Node.js. First time, from this repository:
@@ -40,4 +42,4 @@ Keep the CLI-generated `.env.local`: `CONVEX_DEPLOYMENT` selects the owner's dep
 
 Reset clears tracker data and restores metadata for the deployed backend; schema/function updates require the owner's CLI command. Anyone with the deployment URL can use the tracker endpoints. There is no group-key or integration-environment setup.
 
-Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/step-7-url-only.md).
+Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/step-7-cleanup-review.md).

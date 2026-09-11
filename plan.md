@@ -4,6 +4,8 @@ Updated 11 September 2026. Steps 0–7 are complete (app version 0.1.7). Latest 
 
 ## 1. Agreed scope
 
+Step 7 review follow-up: added **Delete outdated** to the fixed footer, preserving current observations and deleting expired local/shared rows. Database revisions now advance once per changed transaction; identical re-syncs leave rows and revision unchanged. Both TypeScript projects and 79 tests pass. Read-only inspection confirmed the reported empty remote payloads belonged to expired observations. See docs/step-7-cleanup-review.md. Step 8 manual validation and Step 9 release automation remain pending.
+
 Create a Windows 11 x64 desktop application for a small private group, adapting Spirit Vale Overlay's Boss Timers and using the latest verified published Spirit Vale Tools packages. The main window is **MVP Tracker**. It works locally without a database connection, remains active in the system tray, and supports manual entries, edits, and clipboard exchange.
 
 | Area | Version 1 decision |
@@ -18,7 +20,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 | Clock | All version 1 displays/manual input use America/Sao_Paulo. Show a disabled timezone selector with that value. Store absolute UTC timestamps internally. |
 | Time format | 24-hour default, optional AM/PM UI. Existing settings migrate once to 24-hour. Compact text export always uses 24-hour kill times. |
 | Respawn | User-confirmed game rule: grave present means boss has not respawned; respawn occurs 60–90 minutes after death, for all supported bosses. |
-| Expiry | At +90 minutes mark Spawned. Keep the kill information until +150 minutes, then discard its values and retain the boss slot labeled Outdated. |
+| Expiry | At +90 minutes mark Spawned. At +150 minutes discard observation values and retain an Outdated label. The footer's Delete outdated button removes these labels locally and remotely after rechecking expiry. |
 | Edits | Add and Edit set kill date/time; confirmation automatically stamps the information time from the Windows clock. Manual and automatic evidence may replace one another. |
 | Sharing | Configurable Convex cloud development URL, empty initially. Transactional manual sync and optional timed auto-sync: 10, 20, or 30 seconds; 1, 2, or 5 minutes. |
 | Reset | Confirmed Convex reset mutation clears tracker observations and advances dataset generation, retaining schema/catalog labels. Owner deploys functions separately with `npx convex dev --once`; this command does not erase records. |
@@ -426,6 +428,8 @@ Gate: incompatible protocols reject; valid candidates merge without clobbering u
 **Complete (0.1.6).** Convex schema/functions, authorization, initialization, transactional merge/reset, revision deltas and attribution are implemented. Settings now saves/tests a separate URL connection with cancellation and safe errors. TypeScript, 50 Bun tests and 6 Convex tests pass. See docs/step-6-verification.md and docs/convex-setup.md. Historical Step 6 added a disposable harness, since removed; no live deployment was created or reset. Step 7 retains UI sync/reset coordination and idle expiry scheduling.
 
 ### Step 7 — Manual/automatic sync, reset, and expiry
+
+- [x] Review full evidence persistence and revision behavior; add queued outdated-row deletion with safe client refresh after physical database deletions. Keep indexed expiresAt for scheduled cleanup. Revisions advance once per changed batch; duplicate/no-change sync does not write.
 
 - [x] Implement one shared manual/automatic sync coordinator, six intervals (10s/20s/30s/1m/2m/5m), Start/Stop, next-sync display, coalescing, live interval changes, backoff, sleep/reconnect, and safe shutdown.
 - [x] Implement atomic delta application/acknowledgements, capture/edit-during-sync handling, no-op polling optimization, and bounded reset receipts.

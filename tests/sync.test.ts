@@ -7,7 +7,7 @@ import { SyncCoordinator, connectionId, type SyncClock, type SyncTransport } fro
 import { defaultSelection } from "../src/domain/catalog";
 import { emptySlot, mergeObservations, slotKey, type Observation, type TimerSlot } from "../src/domain/timers";
 import { applySync, pendingUploads } from "../src/domain/sync";
-import type { Connection, Dataset, Discovery, SyncInput, SyncResult } from "../src/shared/sharing";
+import type { Connection, Dataset, Discovery, SyncInput, SyncResult, PruneResult } from "../src/shared/sharing";
 const roots: string[] = [], engines: SyncCoordinator[] = [];
 const now = Date.UTC(2026, 8, 11, 18), config = { url: "https://test-sync.convex.cloud" };
 const o = (id: string, patch: Partial<Observation> = {}): Observation => ({ mobId: "NightmarePaladinBoss", region: "sa", channel: 1, observationId: id, diedAt: now - 600000, gatheredAt: now - 1000, source: "manual", timePrecision: "second", ...patch });
@@ -44,6 +44,15 @@ class Transport implements SyncTransport {
     this.receipts.set(id, { ...this.dataset });
     if (this.lostReset) { this.lostReset = false; throw new Error("Sharing: Could not reach Convex. Retry."); }
     return { ...this.dataset };
+  }
+  prunes = 0;
+  async prune(expected: Dataset): Promise<PruneResult> {
+    this.prunes++; await this.hold; if (this.error) throw this.error;
+    if (expected.generation !== this.dataset.generation) throw new Error("Sharing: dataset changed.");
+    const before = this.rows.length;
+    this.rows = this.rows.filter(r => r.observation ? r.observation.diedAt + 9000000 > this.clock.now() : !r.outdated);
+    if (before !== this.rows.length) this.dataset.revision++;
+    return { dataset: { ...this.dataset }, serverTime: this.clock.now(), full: true, pruneOutdated: true, slots: this.rows.map(r => ({ ...r, revision: this.dataset.revision })), acknowledged: [], removed: before - this.rows.length };
   }
 }
 function fixture() {
@@ -145,4 +154,42 @@ test("remote expired slots preserve newer local evidence and unselected slots ar
   const next = applySync(current, undefined, result, [], connectionId(config), "selected", defaultSelection(), now);
   expect(next.slots).toHaveLength(1); expect(next.slots[0]?.observation?.observationId).toBe("new");
   expect(() => applySync(current, undefined, { ...result, full: false }, [], connectionId(config), "selected", defaultSelection(), now)).toThrow();
+});
+
+test("delete outdated works locally without a connection and persists while preserving live records", async () => {
+  const { engine, store, transport, root, clock } = fixture(); transport.config = { url: "" };
+  store.ingest([o("old", { diedAt: now - 9000000 }), o("live", { channel: 2 })]);
+  engine.requestPrune(); await engine.settled();
+  expect(store.snapshot().map(s => s.observation?.observationId)).toEqual(["live"]);
+  expect(new TimerStore(root, defaultSelection(), clock.now).snapshot()).toHaveLength(1);
+  expect(transport.prunes).toBe(0); expect(engine.snapshot().message).toContain("No database configured");
+});
+
+test("cleanup waits for sync and preserves fresh capture arriving while the database request is active", async () => {
+  const { engine, store, transport, clock } = fixture(); engine.request(); await engine.settled();
+  store.ingest([o("old", { diedAt: now - 9000000 })]); transport.rows = [emptySlot(o("old"), true)];
+  let release!: () => void; transport.hold = new Promise(r => { release = r; }); engine.request(); engine.requestPrune();
+  expect(transport.prunes).toBe(0); release(); await engine.settled();
+  transport.hold = new Promise(r => { release = r; });
+  const cleaning = clock.advance(0, engine); await Promise.resolve();
+  expect(transport.prunes).toBe(1); store.ingest([o("fresh", { gatheredAt: now })]); release(); await cleaning;
+  expect(store.snapshot()[0]?.observation?.observationId).toBe("fresh"); expect(transport.rows).toHaveLength(0);
+  expect(pendingUploads(store.snapshot(), store.syncState(), defaultSelection(), now)).toHaveLength(1);
+});
+
+test("a shared prune removes obsolete local labels and never clears current local observations", () => {
+  const active = o("active", { channel: 2 });
+  const result: SyncResult = { dataset: { datasetId: "dataset", generation: 1, revision: 3, resetAt: 0 }, full: true, pruneOutdated: true, serverTime: now, slots: [], acknowledged: [] };
+  const applied = applySync([emptySlot(o("old"), true), { ...emptySlot(active), observation: active }], undefined, result, [], connectionId(config), "selected", defaultSelection(), now);
+  expect(applied.slots).toHaveLength(1); expect(applied.slots[0]?.observation?.observationId).toBe("active");
+});
+
+test("cleanup on a new connection does not upload local records or restore remote placeholders on failure", async () => {
+  const { engine, store, transport } = fixture();
+  store.ingest([o("old", { diedAt: now - 9000000 })]); transport.rows = [emptySlot(o("old"), true)];
+  transport.error = new Error("Sharing: Could not reach Convex. Retry."); engine.requestPrune(); await engine.settled();
+  expect(transport.calls).toHaveLength(0); expect(store.snapshot()).toEqual([]);
+  expect(engine.snapshot().message).toContain("database cleanup failed");
+  transport.error = undefined; engine.requestPrune(); await engine.settled();
+  expect(transport.rows).toEqual([]); expect(transport.calls).toHaveLength(0);
 });

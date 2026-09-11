@@ -67,13 +67,46 @@ test("transaction merge preserves unselected slots, stamps sender once and retur
   const { t, args } = await setup();
   const first = await t.mutation(api.timers.sync, { ...args, observations: [evidence(), evidence("na", { region: "na" })] });
   expect(first.slots).toHaveLength(2);
+  expect(first.dataset.revision).toBe(1); expect(first.slots.every(row => row.revision === 1)).toBe(true);
   expect(first.slots[0]?.observation?.submission).toEqual({ submittedByCharacter: "Sender", serverAcceptedAt: now });
+  const storedBefore = await t.run(ctx => ctx.db.query("bossTimers").collect());
+  expect(storedBefore[0]?.expiresAt).toBe(evidence().diedAt + EXPIRE_AFTER);
+  expect(storedBefore[0]?.observation).toMatchObject(evidence());
   const again = await t.mutation(api.timers.sync, { ...args, sinceRevision: first.dataset.revision, sentByCharacter: "Forwarder" });
   expect(again.dataset.revision).toBe(first.dataset.revision); expect(again.slots).toEqual([]);
+  expect(await t.run(ctx => ctx.db.query("bossTimers").collect())).toEqual(storedBefore);
   const fresh = evidence("fresh", { gatheredAt: now, diedAt: now - 80 * MINUTE, killedBy: "Different" });
   const delta = await t.mutation(api.timers.sync, { ...args, sinceRevision: first.dataset.revision, observations: [fresh] });
   expect(delta.full).toBe(false); expect(delta.slots).toHaveLength(1); expect(delta.slots[0]?.observation?.killedBy).toBe("Different");
   const pull = await t.query(api.timers.snapshot, { ...access, datasetId: args.datasetId, generation: args.generation }); expect(pull.slots).toHaveLength(2);
+});
+
+test("pruning rechecks all slots, preserves fresh evidence, is idempotent and refreshes old cursors", async () => {
+  const { t, args } = await setup();
+  const first = await t.mutation(api.timers.sync, { ...args, observations: [evidence(), evidence("other", { region: "eu" })] });
+  vi.setSystemTime(now + EXPIRE_AFTER);
+  const fresh = evidence("fresh", { region: "na", diedAt: now + EXPIRE_AFTER - MINUTE, gatheredAt: now + EXPIRE_AFTER });
+  const updated = await t.mutation(api.timers.sync, { ...args, observations: [fresh] });
+  expect(updated.dataset.revision).toBe(first.dataset.revision + 1);
+  const pruneArgs = { ...access, datasetId: args.datasetId, generation: args.generation };
+  const pruned = await t.mutation(api.timers.pruneOutdated, pruneArgs);
+  expect(pruned.removed).toBe(2); expect(pruned.dataset.revision).toBe(updated.dataset.revision + 1);
+  expect(await t.run(ctx => ctx.db.query("bossTimers").collect())).toHaveLength(1);
+  expect(pruned.slots[0]?.observation).toMatchObject(fresh);
+  const repeat = await t.mutation(api.timers.pruneOutdated, pruneArgs);
+  expect(repeat.removed).toBe(0); expect(repeat.dataset).toEqual(pruned.dataset);
+  const behind = await t.mutation(api.timers.sync, { ...args, observations: [], sinceRevision: first.dataset.revision });
+  expect(behind.full).toBe(true); expect(behind.pruneOutdated).toBe(true);
+  const current = await t.mutation(api.timers.sync, { ...args, observations: [], sinceRevision: pruned.dataset.revision });
+  expect(current.full).toBe(false); expect(current.slots).toEqual([]); expect(current.dataset).toEqual(pruned.dataset);
+  await expect(t.mutation(api.timers.pruneOutdated, { ...pruneArgs, generation: 999 })).rejects.toThrow();
+});
+
+test("pruning checks kill time even before scheduled expiry has cleared the observation", async () => {
+  const { t, args } = await setup(); await t.mutation(api.timers.sync, args); vi.setSystemTime(now + EXPIRE_AFTER);
+  expect((await t.run(ctx => ctx.db.query("bossTimers").first()))?.observation).toBeDefined();
+  const response = await t.mutation(api.timers.pruneOutdated, { ...access, datasetId: args.datasetId, generation: args.generation });
+  expect(response.removed).toBe(1); expect(await t.run(ctx => ctx.db.query("bossTimers").collect())).toHaveLength(0);
 });
 test("invalid batches are atomic and missing sender uploads anonymously", async () => {
   const { t, args } = await setup();

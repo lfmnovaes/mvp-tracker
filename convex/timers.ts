@@ -30,10 +30,11 @@ function publicSlot(row: Doc<"bossTimers">, now: number): SharedSlot {
   return { ...parseSlot(row), outdated: row.outdated || !!row.observation && !active, revision: row.revision, ...(active ? { observation: row.observation as ReturnType<typeof parseObservation> } : {}) };
 }
 async function result(ctx: QueryCtx, m: Doc<"trackerMeta">, since: number | null, now: number, acknowledged: string[] = []): Promise<SyncResult> {
-  const full = since === null || since > m.revision;
+  const pruneOutdated = m.prunedRevision !== undefined && (since === null || since < m.prunedRevision);
+  const full = since === null || since > m.revision || pruneOutdated;
   const rows = !full && since === m.revision ? [] : full ? await ctx.db.query("bossTimers").take(MAX_SLOTS + 1) : await ctx.db.query("bossTimers").withIndex("by_revision", q => q.gt("revision", since!)).take(MAX_SLOTS + 1);
   if (rows.length > MAX_SLOTS) fail("CAPACITY");
-  return { dataset: dataset(m), serverTime: now, full, slots: rows.map(r => publicSlot(r, now)), acknowledged };
+  return { dataset: dataset(m), serverTime: now, full, slots: rows.map(r => publicSlot(r, now)), acknowledged, ...(pruneOutdated ? { pruneOutdated: true } : {}) };
 }
 export const testConnection = query({ args: { protocol: v.number() }, handler: async (ctx, args): Promise<Discovery> => {
   checkProtocol(args.protocol); const m = await meta(ctx);
@@ -55,7 +56,8 @@ async function expire(ctx: MutationCtx, m: Doc<"trackerMeta">, now: number) {
   if (m.nextExpiry === undefined || m.nextExpiry > now) return;
   const due = await ctx.db.query("bossTimers").withIndex("by_expiry", q => q.gt("expiresAt", 0).lte("expiresAt", now)).take(MAX_SLOTS + 1);
   if (due.length > MAX_SLOTS) fail("CAPACITY");
-  for (const row of due) await ctx.db.patch(row._id, { observation: undefined, expiresAt: undefined, outdated: true, revision: ++m.revision });
+  if (due.length) m.revision++;
+  for (const row of due) await ctx.db.patch(row._id, { observation: undefined, expiresAt: undefined, outdated: true, revision: m.revision });
 }
 async function expiryMetadata(ctx: MutationCtx, m: Doc<"trackerMeta">) {
   const first = await ctx.db.query("bossTimers").withIndex("by_expiry", q => q.gt("expiresAt", 0)).first();
@@ -97,11 +99,24 @@ export const sync = mutation({ args: {
     if (o.diedAt + EXPIRE_AFTER <= now || o.diedAt <= m.resetAt) continue;
     const key = slotKey(o), old = await ctx.db.query("bossTimers").withIndex("by_slot", q => q.eq("key", key)).unique();
     if (old?.observation && compareEvidence(o, old.observation as typeof o) <= 0) continue;
-    const fields = { key, ...parseSlot(o), observation: { ...o, submission: { submittedByCharacter: sender || null, serverAcceptedAt: now } }, outdated: false, revision: ++m.revision, expiresAt: o.diedAt + EXPIRE_AFTER };
+    m.revision = before + 1;
+    const fields = { key, ...parseSlot(o), observation: { ...o, submission: { submittedByCharacter: sender || null, serverAcceptedAt: now } }, outdated: false, revision: m.revision, expiresAt: o.diedAt + EXPIRE_AFTER };
     if (old) await ctx.db.patch(old._id, fields); else await ctx.db.insert("bossTimers", fields);
   }
   if (m.revision !== before || m.nextExpiry !== undefined && !m.cleanupJob) await expiryMetadata(ctx, m);
   return result(ctx, m, args.sinceRevision, now, [...ids.keys()]);
+} });
+export const pruneOutdated = mutation({ args: { protocol: v.number(), datasetId: v.string(), generation: v.number() }, handler: async (ctx, args) => {
+  checkProtocol(args.protocol); const m = await bound(ctx, args.datasetId, args.generation), now = Date.now();
+  const rows = await ctx.db.query("bossTimers").take(MAX_SLOTS + 1); if (rows.length > MAX_SLOTS) fail("CAPACITY");
+  // Recheck actual evidence in this transaction; never trust a stale client list or outdated flag on a live observation.
+  const expired = rows.filter(row => row.observation ? row.observation.diedAt + EXPIRE_AFTER <= now : row.outdated);
+  for (const row of expired) await ctx.db.delete(row._id);
+  if (expired.length) {
+    m.revision++; m.prunedRevision = m.revision;
+    await ctx.db.patch(m._id, { prunedRevision: m.prunedRevision }); await expiryMetadata(ctx, m);
+  }
+  return { ...await result(ctx, m, null, now), pruneOutdated: true, removed: expired.length };
 } });
 export const reset = mutation({ args: { protocol: v.number(), datasetId: v.string(), generation: v.number(), requestId: v.string() }, handler: async (ctx, args): Promise<Dataset> => {
   checkProtocol(args.protocol); requestId(args.requestId);

@@ -66,6 +66,13 @@ export class TimerStore {
     return this.replace(this.slots.filter(s => slotKey(s) !== key));
   }
   expire(): boolean { return this.replace(expireSlots(this.slots, this.now())); }
+  pruneOutdated(): number {
+    const before = this.slots.length;
+    this.replace(expireSlots(this.slots, this.now()).filter(s => s.observation || !s.outdated));
+    this.flush();
+    if (this.dirty || this.writeBlocked) throw new Error("Sharing: local cleanup could not be saved. Check portable folder access.");
+    return before - this.slots.length;
+  }
   flush(): void {
     if (!this.dirty || this.writeBlocked) return;
     const temporary = `${this.file}.tmp`;

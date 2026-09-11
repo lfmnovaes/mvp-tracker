@@ -120,5 +120,6 @@ export class SharingConnection {
   }
   pull(expected: Dataset) { return this.request((c) => c.query(api.timers.snapshot, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation })); }
   sync(input: SyncInput) { return this.request((c) => c.mutation(api.timers.sync, input)); }
+  prune(expected: Dataset) { return this.request(c => c.mutation(api.timers.pruneOutdated, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation })); }
   reset(expected: Dataset, requestId: string) { return this.request((c) => c.mutation(api.timers.reset, { protocol: SHARING_PROTOCOL, datasetId: expected.datasetId, generation: expected.generation, requestId })); }
 }
