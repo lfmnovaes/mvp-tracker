@@ -40,7 +40,7 @@ test("catalog presets protect the exact Endgame group without selecting Weaver o
 
 test("Step 1 preferences migrate without losing hotkeys or startup choice", () => {
   const migrated = parseSettings({ schemaVersion: 1, startMinimized: true, clock24: true, hotkeys: { toggle: "Ctrl+F7", add: "", sync: "F9" } });
-  expect(migrated.schemaVersion).toBe(4); expect(migrated.startMinimized).toBe(true);
+  expect(migrated.schemaVersion).toBe(5); expect(migrated.startMinimized).toBe(true);
   expect(migrated.hotkeys.add).toBe(""); expect(migrated.tracking).toEqual(defaultSelection());
   expect(parseSettings({ ...defaults(), tracking: { bossIds: [], regions: [] } }).tracking).toEqual({ bossIds: [], regions: [] });
   expect(() => parseSelection({ bossIds: ["Dragon Predator Robot"], regions: ["sa"] })).toThrow();
@@ -137,6 +137,32 @@ test("restart removes expired values and committed data wins over interrupted-sa
   expect(readFileSync(store.file, "utf8")).not.toContain("Killer");
   expect(readFileSync(store.file, "utf8")).not.toContain("gatheredAt");
   expect(existsSync(`${store.file}.tmp`)).toBe(false);
+});
+
+test("removing one local slot persists, preserves other slots and allows a later observation", () => {
+  const root = temporary(); const store = new TimerStore(root, defaultSelection(), () => now);
+  store.ingest([observation("removed"), observation("kept", { channel: 1 })]);
+  expect(store.remove(slot)).toBe(true);
+  expect(store.remove(slot)).toBe(false);
+  const restarted = new TimerStore(root, defaultSelection(), () => now);
+  expect(restarted.snapshot().map(s => s.observation?.observationId)).toEqual(["kept"]);
+  expect(readFileSync(store.file, "utf8")).not.toContain("removed");
+  restarted.ingest([observation("new-check", { gatheredAt: now })]);
+  expect(restarted.snapshot()).toHaveLength(2);
+  expect(() => restarted.remove({ ...slot, channel: 4 } as never)).toThrow();
+  expect(restarted.snapshot()).toHaveLength(2);
+});
+
+test("24-hour defaults migrate once and an explicit AM/PM choice remains available", () => {
+  expect(defaults().clock24).toBe(true);
+  for (const schemaVersion of [1, 2, 3, 4]) {
+    expect(parseSettings({ ...defaults(), schemaVersion, clock24: false }).clock24).toBe(true);
+  }
+  expect(parseSettings({ ...defaults(), clock24: false }).clock24).toBe(false);
+  const at = Date.UTC(2026, 8, 10, 23, 35, 22);
+  expect(formatClock(at)).toBe("20:35");
+  expect(formatTimestamp(at)).toBe("2026-09-10 20:35:22");
+  expect(formatClock(at, false)).toBe("8:35 PM");
 });
 
 test("orphaned temporary data recovers; corrupt originals remain preserved", () => {

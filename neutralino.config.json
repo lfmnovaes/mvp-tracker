@@ -16,7 +16,7 @@
     "commandWindows": "\"${NL_PATH}/extensions/bin/bun.exe\" --no-orphans \"${NL_PATH}/extensions/backend/index.js\""
   }],
   "modes": { "window": {
-    "title": "MVP Tracker", "width": 1080, "height": 700, "minWidth": 820, "minHeight": 560,
+    "title": "MVP Tracker", "width": 1080, "height": 820, "minWidth": 820, "minHeight": 560,
     "borderless": true, "resizable": true, "exitProcessOnClose": false,
     "center": true, "useSavedState": true,
     "injectGlobals": true, "injectClientLibrary": false, "useLogicalPixels": true,

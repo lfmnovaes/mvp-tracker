@@ -96,6 +96,11 @@ native.on(REQUEST, raw => {
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
       let result: unknown = null;
       switch (request.method) {
+        case "removeTimer": {
+          pendingObservations.delete(slotKey(request.input));
+          timers.remove(request.input); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
+          result = state; await publish({ type: "snapshot", value: state }); break;
+        }
         case "exportTimers": {
           flushObservations();
           const exported = exportTimers(timers.snapshot(), state.settings.tracking, Date.now(), request.input);

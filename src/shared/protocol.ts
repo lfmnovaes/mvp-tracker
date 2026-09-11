@@ -1,6 +1,6 @@
 import { defaultSelection, parseSelection, type Selection } from "../domain/catalog";
 import { defaultSort, parseSort, type Sort } from "../domain/query";
-import type { TimerSlot } from "../domain/timers";
+import { parseSlot, type TimerSlot, type Slot } from "../domain/timers";
 import { parseManualRequest, type ManualRequest } from "../domain/manual";
 import { EXCHANGE_LIMIT, type ExportFormat, type ImportSummary } from "./exchange";
 import { captureDefaults, parseCaptureSettings, type CaptureSettings, type CaptureSnapshot } from "./capture";
@@ -12,7 +12,7 @@ export const UPDATE = "mvp:update";
 export const ACTIONS = ["toggle", "add", "sync"] as const;
 export type Action = typeof ACTIONS[number];
 export interface Settings {
-  schemaVersion: 4;
+  schemaVersion: 5;
   uiScale: number;
   startMinimized: boolean;
   clock24: boolean;
@@ -21,7 +21,7 @@ export interface Settings {
   sort: Sort;
   capture: CaptureSettings;
 }
-export const defaults = (): Settings => ({ schemaVersion: 4, uiScale: 100, startMinimized: false, clock24: false,
+export const defaults = (): Settings => ({ schemaVersion: 5, uiScale: 100, startMinimized: false, clock24: true,
   hotkeys: { toggle: "F7", add: "F8", sync: "F9" }, tracking: defaultSelection(), sort: defaultSort(), capture: captureDefaults() });
 
 // Restrict v1 bindings to a deliberate, predictable set; empty means disabled.
@@ -32,12 +32,12 @@ export function validShortcut(value: unknown): value is string {
 export function parseSettings(value: unknown): Settings {
   if (!value || typeof value !== "object") throw new Error("Invalid settings.");
   const s = value as Omit<Settings, "schemaVersion"> & { schemaVersion: number };
-  if (![1, 2, 3, 4].includes(s.schemaVersion) || typeof s.startMinimized !== "boolean" || typeof s.clock24 !== "boolean" || !s.hotkeys) throw new Error("Invalid settings.");
+  if (![1, 2, 3, 4, 5].includes(s.schemaVersion) || typeof s.startMinimized !== "boolean" || typeof s.clock24 !== "boolean" || !s.hotkeys) throw new Error("Invalid settings.");
   if (s.schemaVersion >= 4 && ![80, 90, 100, 110, 125].includes(s.uiScale)) throw new Error("Invalid UI scale.");
   if (!ACTIONS.every(a => validShortcut(s.hotkeys[a]))) throw new Error("Use F1–F24 (except reserved F12), or Ctrl/Alt/Shift plus a letter or digit.");
   const enabled = ACTIONS.map(a => s.hotkeys[a]).filter(Boolean);
   if (new Set(enabled).size !== enabled.length) throw new Error("Each enabled shortcut must be unique.");
-  return { schemaVersion: 4, uiScale: s.schemaVersion < 4 ? 100 : s.uiScale, startMinimized: s.startMinimized, clock24: s.clock24,
+  return { schemaVersion: 5, uiScale: s.schemaVersion < 4 ? 100 : s.uiScale, startMinimized: s.startMinimized, clock24: s.schemaVersion < 5 ? true : s.clock24,
     hotkeys: { toggle: s.hotkeys.toggle, add: s.hotkeys.add, sync: s.hotkeys.sync },
     tracking: s.schemaVersion === 1 ? defaultSelection() : parseSelection(s.tracking),
     sort: s.schemaVersion === 1 ? defaultSort() : parseSort(s.sort),
@@ -55,6 +55,7 @@ export interface Snapshot {
   diagnosticsUntil: number;
 }
 export interface Operations {
+  removeTimer: { input: Slot; output: Snapshot };
   exportTimers: { input: ExportFormat; output: number };
   importTimers: { input: { text: string; commit: boolean }; output: { summary: ImportSummary; snapshot?: Snapshot } };
   hotkeyCapture: { input: boolean; output: null };
@@ -76,6 +77,7 @@ export function parseRequest(raw: unknown): Request {
   const r = raw as Request;
   if (typeof r.id !== "string" || !/^[a-z0-9-]{1,80}$/i.test(r.id)) throw new Error("Invalid request ID.");
   switch (r.method) {
+    case "removeTimer": return { ...r, input: parseSlot(r.input) };
     case "exportTimers": if (!["text", "json", "compressed"].includes(r.input)) throw new Error("Invalid export format."); break;
     case "importTimers": if (!r.input || typeof r.input.text !== "string" || r.input.text.length > EXCHANGE_LIMIT || typeof r.input.commit !== "boolean") throw new Error("Invalid import request or size."); break;
     case "hotkeyCapture": if (typeof r.input !== "boolean") throw new Error("Invalid capture request."); break;

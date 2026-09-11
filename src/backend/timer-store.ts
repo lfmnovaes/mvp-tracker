@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isSelected, parseSelection, type Selection } from "../domain/catalog";
-import { applyManual, expireSlots, mergeObservations, parseTimerState, TIMER_SCHEMA, type ManualEntry, type TimerSlot } from "../domain/timers";
+import { applyManual, expireSlots, mergeObservations, parseSlot, parseTimerState, slotKey, TIMER_SCHEMA, type ManualEntry, type TimerSlot, type Slot } from "../domain/timers";
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 // In-memory transitions are synchronous and file replacement is atomic. No stale async save can overtake a new observation.
@@ -45,6 +45,10 @@ export class TimerStore {
   selectedSnapshot(): TimerSlot[] { return this.snapshot().filter(slot => isSelected(slot, this.selection)); }
   ingest(observations: readonly unknown[]): boolean { return this.replace(mergeObservations(this.slots, observations, this.now(), this.selection)); }
   saveManual(entry: ManualEntry): boolean { return this.replace(applyManual(this.slots, entry, this.now(), this.selection)); }
+  remove(slot: Slot): boolean {
+    const key = slotKey(parseSlot(slot));
+    return this.replace(this.slots.filter(s => slotKey(s) !== key));
+  }
   expire(): boolean { return this.replace(expireSlots(this.slots, this.now())); }
   flush(): void {
     if (!this.dirty || this.writeBlocked) return;

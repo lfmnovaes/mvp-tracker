@@ -53,3 +53,8 @@ test("UI scale migrates every previous schema and rejects unsupported values", (
   expect(parseSettings({ ...defaults(), uiScale: 125 }).uiScale).toBe(125);
   for (const uiScale of [0, 500, 99, "100", null]) expect(() => parseSettings({ ...defaults(), uiScale })).toThrow();
 });
+
+test("remove timer requests accept only a valid canonical slot", () => {
+  expect(parseRequest({ id: "remove", method: "removeTimer", input: { ...slot, observation: "ignored" } })).toEqual({ id: "remove", method: "removeTimer", input: slot });
+  expect(() => parseRequest({ id: "remove", method: "removeTimer", input: { ...slot, channel: 4 } })).toThrow();
+});

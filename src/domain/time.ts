@@ -13,11 +13,11 @@ export function zonedParts(at: number): Record<string, number> {
 export function dateInZone(at: number): string {
   const p = zonedParts(at); return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 }
-export function formatClock(at: number, clock24 = false, seconds = false): string {
+export function formatClock(at: number, clock24 = true, seconds = false): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, hour: clock24 ? "2-digit" : "numeric", minute: "2-digit",
     ...(seconds ? { second: "2-digit" as const } : {}), hourCycle: clock24 ? "h23" : "h12" }).format(at);
 }
-export function formatTimestamp(at: number, clock24 = false): string { return `${dateInZone(at)} ${formatClock(at, clock24, true)}`; }
+export function formatTimestamp(at: number, clock24 = true): string { return `${dateInZone(at)} ${formatClock(at, clock24, true)}`; }
 export interface ManualTime { date: string; time: string; clock24: boolean; meridiem?: "AM" | "PM" }
 export function parseManualTime(input: ManualTime, now: number): { diedAt: number; timePrecision: "minute" | "second" } {
   if (typeof input?.date !== "string" || typeof input.time !== "string" || typeof input.clock24 !== "boolean") throw new Error("Invalid kill date or time.");

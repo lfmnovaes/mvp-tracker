@@ -16,7 +16,7 @@ Create a Windows 11 x64 desktop application for a small private group, adapting 
 | Capacity | 42 is the default logical working set, not a hard limit. More selected bosses/regions create more slots. |
 | Deselection | Hide existing local entries and stop accepting new observations for deselected bosses/regions; retain existing entries until expiry. Preserve other players' remote rows. |
 | Clock | All version 1 displays/manual input use America/Sao_Paulo. Show a disabled timezone selector with that value. Store absolute UTC timestamps internally. |
-| Time format | AM/PM default, optional 24-hour UI. Compact text export always uses 24-hour kill times. |
+| Time format | 24-hour default, optional AM/PM UI. Existing settings migrate once to 24-hour. Compact text export always uses 24-hour kill times. |
 | Respawn | User-confirmed game rule: grave present means boss has not respawned; respawn occurs 60–90 minutes after death, for all supported bosses. |
 | Expiry | At +90 minutes mark Spawned. Keep the kill information until +150 minutes, then discard its values and retain the boss slot labeled Outdated. |
 | Edits | Add and Edit set kill date/time; confirmation automatically stamps the information time from the Windows clock. Manual and automatic evidence may replace one another. |
@@ -128,7 +128,7 @@ Use a resizable dark window with a distinct compact tracker layout: title bar, c
 
 Capture status shows starting, waiting for game, game detected/waiting for usable packets, Capture Active, stalled, missing/unavailable Npcap, adapter failure, and backend reconnecting. Preserve useful upstream explanations. Capture, storage, and Convex sync status are independent; a successful sync never implies game capture is active. Normal game absence is informational rather than a repeated error log.
 
-Table columns: Boss, Level, Map/Location, Region, Channel, Killer, Status/respawn range, Gathered at, Actions. Show full gathered date/time including seconds, with kill time/source in accessible row details or an expanded row. Keep killer name visible; use an empty display when manual input has no known killer.
+Table columns: Boss, Level, Map/Location, Region, Channel, Killer, Status/respawn range, Gathered at, Actions. Show gathered time including seconds in the column and full date/time in the tooltip and expanded Details, alongside kill time/source. Keep killer name visible; use an empty display when manual input has no known killer. A trash icon removes the local slot; subsequent capture/import/sync can restore it, without deleting shared data. Filters and actions remain fixed above/below the scrolling table, with slim side padding. New windows default to centered 1080 × 820; saved bounds take priority.
 
 Sort Boss/Map/Region/Killer alphabetically, Level/Channel numerically, and gathered time by UTC timestamp. Every requested column supports ascending/descending order and remembers the choice. Default status sorting prioritizes Spawn window by due time, Waiting by eligibility, Spawned by due time, then Outdated/No data; stable boss/region/channel tie-breakers. Never sort formatted countdown strings. Tick updates must not steal focus.
 
@@ -396,7 +396,7 @@ Gate: synthetic capture fixtures pass. Real packet cadence/revisits/region switc
 ### Step 4 — Complete tracker and Settings interactions
 
 - [x] Implement sortable/filterable table, visible killer, capture strip, details, Outdated/empty states, footer controls.
-- [x] Implement Add/Edit kill date/time, AM/PM default, optional 24-hour display, selected-boss/region/channel dropdowns, Save-time evidence stamps.
+- [x] Implement Add/Edit kill date/time, 24-hour default (updated in Step 5 follow-up), optional AM/PM display, selected-boss/region/channel dropdowns, Save-time evidence stamps.
 - [x] Complete scrollable boss/region settings, disabled timezone selector, scale, hotkeys, start minimized, diagnostics, and Exit.
 
 Gate: all local flows work with fixtures/capture disabled, keyboard navigation and input validation pass, and live updates preserve focus. Commit/push.
@@ -411,6 +411,8 @@ Gate: all local flows work with fixtures/capture disabled, keyboard navigation a
 Gate: two independent states exchange data repeatedly without duplicate/freshness inflation; text ignores non-Endgame bosses, invalid input causes no mutation. Commit/push.
 
 **Complete (0.1.5).** Clipboard exchange is implemented with validated preview/confirmation and original evidence timestamps. Timer rows are slimmer; timezone and character context replace the negligible window footer labels, with no internal table status bar. TypeScript and 41 tests / 285 assertions pass; see `docs/step-5-verification.md`. Manual desktop checks remain deferred to the user.
+
+**2026-09-11 follow-up:** local row deletion, 24-hour default/migration, time-only Gathered at, fixed filters/actions, a scrolling table with sticky headings, slimmer sides and 820px default height. TypeScript and 44 tests / 303 assertions pass; see `docs/step-5-follow-up.md` for behavior and all header statuses. Version remains 0.1.5. Manual desktop checks remain with the user.
 
 ### Step 6 — Convex backend and connection
 
