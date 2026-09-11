@@ -1,0 +1,13 @@
+# Step 5 — Clipboard exchange (0.1.5)
+
+Timer row vertical padding reduced from 12px to 7px; action buttons and spawn-range spacing are slimmer. Timezone and character/region/channel context now occupy the window bottom bar. The table has no internal status bar, and the old tray/Windows/portable footer text is removed.
+
+Exports use current selected bosses/regions, independent of search. Compact text contains only selected Dark Fortress kill times, sorted by full UTC kill timestamp before HH:mm formatting, with region UTC-3 headers and empty groups omitted. JSON and MVPT1 base64url/gzip contain canonical observation fields plus schema/catalog/time metadata. Unknown/private fields are stripped. Current killer/observer attribution is retained; Convex sender/generation metadata will be added with the database model in later steps.
+
+Import validates the entire input, previews added/refreshed/older/disabled/expired/conflict counts, and merges only on confirmation. The backend recomputes against latest capture and selections; import receipt never becomes gathered time. Equal IDs are idempotent, conflicting ID content rejects, and deterministic equal-time ties follow the existing domain rules. Cancel makes no import mutation. Routine timer expiry continues independently.
+
+Limits: 512,000 UTF-8 bytes of input/expanded JSON, 594 observations, nesting depth 8, and existing domain timestamp/string/channel constraints. Uses the pinned Bun runtime's bundled `node:zlib`, avoiding an extra dependency. Gzip CRC and native maxOutputLength are verified by tests, including an expansion-limit fixture. Canonical base64url, strict UTF-8 decoding, envelope/version checks and whole-batch validation reject malformed inputs. Compression provides no authentication or secrecy. [zlib API](https://nodejs.org/api/zlib.html).
+
+Verification: `bun run check` passes TypeScript and **41 tests / 285 assertions**. Five exchange tests cover midnight text ordering, UTF-8 round trips, two-state convergence and repeated import, preview immutability, newer local evidence at confirmation, disabled/expired/conflict counts, invalid schemas/channels/timestamps/IDs, deep nesting, corrupt gzip and bounded expansion. Windows x64 build/package metadata is 0.1.5. ZIP checks exclude data/logs/secrets/research/node_modules and require runtime, source and licenses.
+
+No manual desktop/game testing performed. Later user checks: slimmer rows and relocated footer at supported scales; clipboard permissions/failures; JSON/compressed copy between two instances; preview/cancel/confirm while capture updates; read-only storage warnings. No Convex network sync is enabled by this step.

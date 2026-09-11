@@ -2,8 +2,9 @@ import { defaultSelection, parseSelection, type Selection } from "../domain/cata
 import { defaultSort, parseSort, type Sort } from "../domain/query";
 import type { TimerSlot } from "../domain/timers";
 import { parseManualRequest, type ManualRequest } from "../domain/manual";
+import { EXCHANGE_LIMIT, type ExportFormat, type ImportSummary } from "./exchange";
 import { captureDefaults, parseCaptureSettings, type CaptureSettings, type CaptureSnapshot } from "./capture";
-export const VERSION = "0.1.4";
+export const VERSION = "0.1.5";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";
@@ -54,6 +55,8 @@ export interface Snapshot {
   diagnosticsUntil: number;
 }
 export interface Operations {
+  exportTimers: { input: ExportFormat; output: number };
+  importTimers: { input: { text: string; commit: boolean }; output: { summary: ImportSummary; snapshot?: Snapshot } };
   hotkeyCapture: { input: boolean; output: null };
   captureRestart: { input: null; output: null };
   saveManual: { input: ManualRequest; output: Snapshot };
@@ -73,6 +76,8 @@ export function parseRequest(raw: unknown): Request {
   const r = raw as Request;
   if (typeof r.id !== "string" || !/^[a-z0-9-]{1,80}$/i.test(r.id)) throw new Error("Invalid request ID.");
   switch (r.method) {
+    case "exportTimers": if (!["text", "json", "compressed"].includes(r.input)) throw new Error("Invalid export format."); break;
+    case "importTimers": if (!r.input || typeof r.input.text !== "string" || r.input.text.length > EXCHANGE_LIMIT || typeof r.input.commit !== "boolean") throw new Error("Invalid import request or size."); break;
     case "hotkeyCapture": if (typeof r.input !== "boolean") throw new Error("Invalid capture request."); break;
     case "snapshot": case "clipboardRead": case "captureRestart": if (r.input !== null) throw new Error("Invalid request."); break;
     case "saveSettings": return { ...r, input: parseSettings(r.input) };

@@ -9,6 +9,8 @@ import { slotKey, type TimerSlot } from "../domain/timers";
 import { emptyCapture } from "../shared/capture";
 import { ManualDialog } from "./manual-dialog";
 import { TimerRowView } from "./timer-row";
+import { ImportDialog } from "./import-dialog";
+import type { ExportFormat } from "../shared/exchange";
 
 const labels: Record<Action, string> = { toggle: "Show / hide tracker", add: "Add manually", sync: "Sync" };
 type Tab = "General" | "Tracking" | "Sharing" | "Capture & diagnostics";
@@ -27,6 +29,9 @@ function App() {
   const [region, setRegion] = useState<Region | "">("");
   const [channel, setChannel] = useState<Channel | "">("");
   const [connected, setConnected] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("text");
+  const [exporting, setExporting] = useState(false);
   const [focusedOrder, setFocusedOrder] = useState<string[] | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const openSettings = () => { setDraft(snapshot?.settings ?? defaults()); setSettingsOpen(true); setMessage(""); };
@@ -90,6 +95,11 @@ function App() {
   const diagnosticsAction = async (input: "open" | "copy" | "start" | "stop") => {
     try { setMessage(await call("diagnostics", input)); } catch (e) { setMessage((e as Error).message); }
   };
+  const exportClipboard = async () => {
+    if (exporting) return; setExporting(true);
+    try { const count = await call("exportTimers", exportFormat); setMessage(`Copied ${count} observations as ${exportFormat}.`); }
+    catch (e) { setMessage((e as Error).message); } finally { setExporting(false); }
+  };
   const changeSort = async (field: SortField) => {
     if (!snapshot || sorting) return; setSorting(true);
     try { setSnapshot(await call("saveSettings", { ...snapshot.settings, sort: { field, direction: sort.field === field && sort.direction === "asc" ? "desc" : "asc" } })); }
@@ -109,12 +119,12 @@ function App() {
         <div class="table-scroll"><table><thead><tr>{([["boss", "Boss"], ["level", "Level"], ["location", "Location"], ["region", "Region"], ["channel", "Channel"], ["status", "Status"], ["gathered", "Gathered at"], ["killer", "Killer"]] as [SortField, string][]).map(([field, label]) => <th key={field} aria-sort={sort.field === field ? sort.direction === "asc" ? "ascending" : "descending" : "none"}><button disabled={sorting || !connected} onClick={() => void changeSort(field)}>{label}{sort.field === field ? sort.direction === "asc" ? " ↑" : " ↓" : ""}</button></th>)}<th class="actions-heading">Actions</th></tr></thead>
           <tbody onFocusCapture={() => setFocusedOrder(current => current ?? rows.map(row => slotKey(row.slot)))} onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusedOrder(null); }}>{displayRows.map(row => <TimerRowView key={slotKey(row.slot)} row={row} clock24={snapshot?.settings.clock24 ?? false} onEdit={slot => setManual({ edit: slot })}/>)}</tbody></table></div>
         {rows.length === 0 && <div class="empty"><div class="empty-icon">◷</div><h2>{noneSelected ? "Nothing selected for tracking" : snapshot?.timers.length ? "No matching timers" : "No boss observations yet"}</h2><p>{noneSelected ? "Choose bosses and regions in Settings to start tracking." : snapshot?.timers.length ? "Try another boss name, region or channel, or clear your filters." : "Walk near a gravestone in the game to collect a timer. Capture continues while the window is hidden."}</p><span class="empty-tag">MVP TRACKER · v{VERSION}</span></div>}
-        <div class="table-note">America/Sao_Paulo <span>UTC−3</span><span class="capture-identity">{health.identity.name ? `${health.identity.name} · ${health.identity.source === "live" ? "Live character" : health.identity.source === "cached" ? "Cached character" : "Manual name"}` : "Character not detected"}{health.region && health.channel ? ` · ${health.region.toUpperCase()} Ch${health.channel}` : ""}</span></div>
+
       </section>
-      <footer class="footer"><div class="exchange"><button class="primary" disabled={!connected || noneSelected} onClick={() => action("add")}>＋ Add manually</button><select aria-label="Export format" disabled title="Clipboard sharing is coming soon"><option>Text</option><option>JSON</option><option>Compressed</option></select><button disabled>Export</button><button disabled>Import</button></div><div class="sync"><span class="subtle">Sharing not configured</span><select aria-label="Auto-sync interval" disabled value="60"><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select><button disabled>Start</button><button disabled title="Convex sharing is coming soon">↻ Sync</button></div></footer>
+      <footer class="footer"><div class="exchange"><button class="primary" disabled={!connected || noneSelected} onClick={() => action("add")}>＋ Add manually</button><select aria-label="Export format" value={exportFormat} onChange={e => setExportFormat(e.currentTarget.value as ExportFormat)}><option value="text">Text</option><option value="json">JSON</option><option value="compressed">Compressed</option></select><button disabled={!connected || exporting} onClick={() => void exportClipboard()}>{exporting ? "Copying…" : "Export"}</button><button disabled={!connected} onClick={() => setImporting(true)}>Import</button></div><div class="sync"><span class="subtle">Sharing not configured</span><select aria-label="Auto-sync interval" disabled value="60"><option value="10">10 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select><button disabled>Start</button><button disabled title="Convex sharing is coming soon">↻ Sync</button></div></footer>
       {message && !settingsOpen && <div class="notice" role="status">{message}<button aria-label="Dismiss message" onClick={() => setMessage("")}>×</button></div>}
     </div>
-    <div class="bottomline"><span>{snapshot?.trayReady ? "Running in tray when closed" : "Tray starting or unavailable"}</span><span>WINDOWS · PORTABLE</span></div>
+    <div class="bottomline">America/Sao_Paulo <span>UTC−3</span><span class="capture-identity">{health.identity.name ? `${health.identity.name} · ${health.identity.source === "live" ? "Live character" : health.identity.source === "cached" ? "Cached character" : "Manual name"}` : "Character not detected"}{health.region && health.channel ? ` · ${health.region.toUpperCase()} Ch${health.channel}` : ""}</span></div>
     <dialog ref={dialog} onCancel={() => setSettingsOpen(false)} onClose={() => setSettingsOpen(false)} aria-labelledby="settings-title">
       <div class="settings-header"><div><span class="eyebrow">MVP TRACKER</span><h2 id="settings-title">Settings</h2></div><button aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
       <div class="settings-body"><nav aria-label="Settings sections">{(["General", "Tracking", "Sharing", "Capture & diagnostics"] as Tab[]).map(t => <button key={t} class={tab === t ? "selected" : ""} onClick={() => { setTab(t); setMessage(""); }}>{t}</button>)}</nav>
@@ -133,7 +143,7 @@ function App() {
           {tab === "Tracking" && <><h3>Bosses to track</h3><div class="catalog-presets">{(["all", "endgame", "none"] as const).map(preset => <button onClick={() => setDraft({ ...draft, tracking: { ...draft.tracking, bossIds: bossPreset(preset) } })}>{preset === "all" ? "All" : preset === "endgame" ? "Endgame" : "None"}</button>)}<span>{draft.tracking.bossIds.length} / {BOSSES.length}</span></div>
             <div class="catalog-list"><table><thead><tr><th>Name</th><th>Level</th><th>Map</th><th>Track</th></tr></thead><tbody>{BOSSES.map(b => <tr key={b.id}><td>{b.name}</td><td>{b.level}</td><td>{b.map}</td><td><input aria-label={`Track ${b.name}`} type="checkbox" checked={draft.tracking.bossIds.includes(b.id)} onChange={e => setDraft({ ...draft, tracking: { ...draft.tracking, bossIds: e.currentTarget.checked ? [...draft.tracking.bossIds, b.id] : draft.tracking.bossIds.filter(id => id !== b.id) } })}/></td></tr>)}</tbody></table></div>
             <h3>Regions</h3><div class="region-checks">{REGIONS.map(region => <label><input type="checkbox" checked={draft.tracking.regions.includes(region)} onChange={e => setDraft({ ...draft, tracking: { ...draft.tracking, regions: e.currentTarget.checked ? [...draft.tracking.regions, region] : draft.tracking.regions.filter(r => r !== region) } })}/>{region.toUpperCase()}</label>)}</div><p class="help">Channels 1–3 are supported in every region. Save applies these preferences. Unchecking an option hides its existing timers; they remain stored until expiry.</p></>}
-          {tab === "Sharing" && <><h3>Your group, in sync</h3><p>Convex sharing is coming soon.</p><label class="field">Convex URL<input placeholder="https://your-deployment.convex.cloud" disabled/></label><label class="field">Shared group key<input type="password" placeholder="Not configured" disabled/></label><p class="help">Optional auto-sync: 10s, 20s, 30s, 1m, 2m or 5m. Clipboard sharing is coming soon.</p></>}
+          {tab === "Sharing" && <><h3>Your group, in sync</h3><p>Convex sharing is coming soon.</p><label class="field">Convex URL<input placeholder="https://your-deployment.convex.cloud" disabled/></label><label class="field">Shared group key<input type="password" placeholder="Not configured" disabled/></label><p class="help">Optional auto-sync: 10s, 20s, 30s, 1m, 2m or 5m. Clipboard export/import is available in the tracker.</p></>}
           {tab === "Capture & diagnostics" && <><h3>Capture</h3><p role="status">{health.detail}</p>
             <label class="field">Network adapter<select value={draft.capture.deviceName} onChange={e => setDraft({ ...draft, capture: { ...draft.capture, deviceName: e.currentTarget.value } })}><option value="">Automatic (recommended)</option>{draft.capture.deviceName && !health.devices.some(d => d.name === draft.capture.deviceName) && <option value={draft.capture.deviceName}>Saved adapter · unavailable</option>}{health.devices.map(d => <option key={d.name} value={d.name}>{d.label}</option>)}</select><small>Save applies the adapter choice. Retry refreshes the adapter list.</small></label>
             <button disabled={!snapshot || health.state === "starting"} onClick={() => void retryCapture()}>Retry capture</button>
@@ -148,6 +158,7 @@ function App() {
       <div class="settings-footer"><button class="exit" onClick={() => void shell("exit")}>Exit MVP Tracker</button><span role="status">{message}</span><button class="primary" disabled={saving || !snapshot?.storageWritable} onClick={() => void save()}>{saving ? "Saving…" : "Save settings"}</button></div>
     </dialog>
     {manual && snapshot && <ManualDialog snapshot={snapshot} edit={manual.edit} onClose={() => setManual(null)} onSaved={(value, text) => { setSnapshot(value); setMessage(text); }}/>}
+    {importing && <ImportDialog onClose={() => setImporting(false)} onSaved={(value, text) => { setSnapshot(value); setMessage(text); }}/>}
   </main>;
 }
 render(<App/>, document.getElementById("app")!);

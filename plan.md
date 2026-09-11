@@ -309,7 +309,7 @@ No uncertainty symbols, question marks, dates, killer names, or extra payload in
 
 JSON contains an application/format identifier, schema/catalog versions, export time, optional dataset generation provenance, and observations with original kill/gathered times, killer names, and observer/sender attribution. Export time is metadata, not freshness. Exclude local filesystem paths, group access or deployment credentials, network addresses, and unrelated settings. Include enough UTC/precision metadata for deterministic merging on another machine.
 
-Compressed format: `MVPT1:<base64url(gzip(UTF-8 JSON))>`. Use a small maintained library such as [fflate](https://github.com/101arrowz/fflate), pinned after checking the current release/license. The explicit prefix supports future migrations; gzip's checksum detects accidental corruption. Compression is not encryption/authentication. The user's original random-looking string was illustrative, not a required wire format.
+Compressed format: `MVPT1:<base64url(gzip(UTF-8 JSON))>`. Step 5 uses the pinned Bun runtime's bundled `node:zlib`; native expansion bounds and checksum validation are tested, with no extra dependency. The explicit prefix supports future migrations; gzip's checksum detects accidental corruption. Compression is not encryption/authentication. The user's original random-looking string was illustrative, not a required wire format.
 
 Export copies to clipboard and reports record count or clipboard failure. Import opens a multiline input dialog, trims outer whitespace/BOM, detects JSON/compressed content, validates completely, previews added/refreshed/ignored/conflicted counts, and merges on confirmation. Cancel leaves state unchanged. Reject plain text with a concise explanation. Do not automatically read or transmit arbitrary clipboard content.
 
@@ -405,10 +405,12 @@ Gate: all local flows work with fixtures/capture disabled, keyboard navigation a
 
 ### Step 5 — Clipboard exchange
 
-- [ ] Implement selected Dark Fortress kill-time text, `UTC-3` headers, JSON and compressed exports with killer names.
-- [ ] Add bounded codecs, import preview/validation/merge, clear rejection messages, and clipboard failure handling.
+- [x] Implement selected Dark Fortress kill-time text, `UTC-3` headers, JSON and compressed exports with killer names.
+- [x] Add bounded codecs, import preview/validation/merge, clear rejection messages, and clipboard failure handling.
 
 Gate: two independent states exchange data repeatedly without duplicate/freshness inflation; text ignores non-Endgame bosses, invalid input causes no mutation. Commit/push.
+
+**Complete (0.1.5).** Clipboard exchange is implemented with validated preview/confirmation and original evidence timestamps. Timer rows are slimmer; timezone and character context replace the negligible window footer labels, with no internal table status bar. TypeScript and 41 tests / 285 assertions pass; see `docs/step-5-verification.md`. Manual desktop checks remain deferred to the user.
 
 ### Step 6 — Convex backend and connection
 

@@ -6,6 +6,7 @@ import { TimerStore } from "./timer-store";
 import { CaptureService } from "./capture-service";
 import { emptyCapture } from "../shared/capture";
 import { Diagnostics } from "./diagnostics";
+import { decodeImport, exportTimers, previewImport } from "./exchange";
 import { compareEvidence, parseObservation, slotKey, type Observation } from "../domain/timers";
 import { VERSION, REQUEST, RESPONSE, UPDATE, parseRequest, type Snapshot, type Update, type Action } from "../shared/protocol";
 
@@ -95,6 +96,24 @@ native.on(REQUEST, raw => {
       if (!ready) throw new Error("The Windows shell is starting. Please try again.");
       let result: unknown = null;
       switch (request.method) {
+        case "exportTimers": {
+          flushObservations();
+          const exported = exportTimers(timers.snapshot(), state.settings.tracking, Date.now(), request.input);
+          if (!exported.count) throw new Error("Export has no current selected observations for this format. Clipboard was left unchanged.");
+          await native.call("clipboard.writeText", { data: exported.text }); result = exported.count; break;
+        }
+        case "importTimers": {
+          const now = Date.now();
+          const incoming = decodeImport(request.input.text, now);
+          // Preview is read-only. Confirmation remerges against the latest capture and preferences.
+          const current = request.input.commit ? (flushObservations(), timers.snapshot()) : [...timers.snapshot()];
+          const preview = previewImport(current, incoming, state.settings.tracking, now);
+          if (request.input.commit) {
+            timers.ingest(preview.observations); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
+            await publish({ type: "snapshot", value: state });
+          }
+          result = { summary: preview.summary, ...(request.input.commit ? { snapshot: state } : {}) }; break;
+        }
         case "saveManual": {
           flushObservations();
           if (request.input.mode === "edit" && !timers.selectedSnapshot().some(s => slotKey(s) === slotKey(request.input.entry))) throw new Error("Invalid edit: this timer is no longer available.");
@@ -153,7 +172,7 @@ native.on(REQUEST, raw => {
     } catch (error) {
       logger?.write("rpc-failed");
       // Only our deliberate validation/storage errors reach the UI; native payloads never do.
-      const message = error instanceof Error && /^(Invalid|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
+      const message = error instanceof Error && /^(Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
         ? error.message : "The action failed. Please retry or restart MVP Tracker.";
       if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: message } }).catch(() => {});
     }

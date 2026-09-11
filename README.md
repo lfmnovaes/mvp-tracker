@@ -1,6 +1,10 @@
 # MVP Tracker
 
-Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.4 completes local Add/Edit timer entry, row details, explicit filters, interface scale and diagnostic controls.** Clipboard exchange and Convex sharing remain subsequent steps in plan.md.
+Portable Windows 11 x64 boss tracker for Spirit Vale. **Version 0.1.5 adds clipboard export/import, slimmer timer rows and a single window status bar for timezone and character context.** Convex sharing remains the next implementation step.
+
+Choose Text, JSON or Compressed and click Export to copy selected current observations. Search filters do not limit exports. Text contains only selected Dark Fortress kill times in 24-hour format, grouped by region/channel with UTC-3 headers. JSON and `MVPT1:` compressed strings preserve kill/gathered times, killer and observer. Empty exports leave the clipboard unchanged. Compression is not encryption.
+
+Import opens an empty input: paste JSON or a compressed string, preview the counts, then confirm Merge timers. Compact text cannot be imported. Confirmation checks the latest local evidence and selections again; disabled/expired entries are skipped and repeated imports never refresh gathered time. Invalid batches cause no import mutation. Input/expanded JSON is limited to 500 KB and 594 observations. No clipboard content is read automatically or uploaded.
 
 Extract the entire portable ZIP into a writable folder and open **MVP Tracker.exe**. Windows 11's WebView2 runtime and .NET Framework 4.x are required. No Node/Bun/npm installation is required to run the ZIP. This build is unsigned.
 
