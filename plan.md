@@ -1,6 +1,6 @@
 # MVP Tracker — implementation plan
 
-Updated 11 September 2026. App version 0.1.8.2 adds Step 9 release automation and a Step 8 paste-back test plan. Steps 0–8 engineering checks are complete; live/manual acceptance remains pending. Both TypeScript projects and 85 unit tests pass. No Convex functions/schema changed. See docs/step-9-verification.md, docs/releases.md and docs/test-report.md.
+Updated 11 September 2026. App version 0.1.8.2 completes Step 9 release automation and adds a Step 8 paste-back test plan. Steps 0–9 engineering work is complete; live/manual acceptance and publishing the verified draft remain pending. Both TypeScript projects and 85 unit tests pass; clean GitHub builds, manual dry run and tagged draft creation passed. No Convex functions/schema changed. See docs/step-9-verification.md, docs/releases.md and docs/test-report.md.
 
 0.1.8.1 follow-up: explicitly persist normal window bounds and monitor in `data/window.json`, restore monitor-relative coordinates and recover to the primary screen when disconnected. Status ascending order is Spawned → Spawn window → Waiting → Outdated → No data. Changed rows use a two-second highlight/fade, including gathered-only refreshes; unchanged snapshots do not restart it. Gathered time has ten 15-minute green/yellow/orange/red bands and an eleventh muted-red Outdated state. Retain only local release artifacts for 0.1.8 and 0.1.8.1.
 
@@ -460,10 +460,10 @@ Gate: no unresolved local data-loss bug; sync limitations accurately documented;
 
 - [x] Add CI for pushes/PRs, manual dry run, portable packaging, artifact verification/tamper rejection, checksums/licenses/source manifest, and version-checked tagged draft releases.
 - [x] Produce and inspect a local test artifact, with 42/594-slot performance measurements and corresponding source.
-- [ ] Confirm a clean GitHub runner dry run and tagged draft release; record the run URLs in docs/step-9-verification.md.
+- [x] Confirm a clean GitHub runner dry run and tagged draft release; record the run URLs in docs/step-9-verification.md.
 - [ ] User validates on a clean supported Windows 11 machine, supplies the Step 8 report, then publishes the draft release.
 
-0.1.8.2: automated work is implemented. Only tagged pushes may create a draft; ordinary pushes/PRs/manual dry runs do not publish. Acceptance testing remains distinct from build verification. See docs/releases.md and docs/test-report.md.
+0.1.8.2: automated work is complete and verified at tag app-v0.1.8.2 (bb3858e). Only tagged pushes may create a draft; ordinary pushes/PRs/manual dry runs do not publish. Acceptance testing remains distinct from build verification. Local artifacts retain 0.1.8 and 0.1.8.2. See docs/releases.md and docs/test-report.md.
 
 Gate: a clean checkout produces a verified portable ZIP; the user can run it with documented system prerequisites and preserve data through an upgrade. Commit/push before the release tag.
 
@@ -502,11 +502,11 @@ Adapt upstream's [release workflow](https://github.com/kar-mi/spirit-vale-overla
 
 1. **Pin inputs:** Bun, TypeScript, shell/runtime dependencies, capture/catalog packages and lockfile; record upstream provenance and Windows runner image. Recheck compatibility before dependency bumps.
 2. **CI on pushes/PRs:** clean checkout, frozen dependency install, typecheck, relevant tests, build, version/config consistency. Use public npm where available. Never commit registry tokens or expose release credentials to untrusted PR jobs.
-3. **Manual dry run:** `workflow_dispatch` produces a test artifact without publishing. Assemble `mvp-tracker-windows-x64-vX.Y.Z.zip` with one matching versioned folder and clearly named executable.
+3. **Manual dry run:** `workflow_dispatch` produces a test artifact without publishing. Assemble `MVP-Tracker-X.Y.Z-windows-x64.zip` (also accepting four-part patch versions) with one matching versioned folder and clearly named executable.
 4. **Bundle:** Windows x64 shell, Bun/backend/resources, required hotkey helper, icon/version/DPI metadata, README, license/attribution and corresponding-source/build instructions. Users need no Bun/Node/Git/package or Convex deployment credentials.
 5. **Exclude:** developer credentials, `.git`, research clones, settings/timers/logs, Convex credentials or private deployment configuration, tokens, non-Windows binaries, unrelated tools/assets. Create fresh empty writable data directories at runtime if needed.
 6. **Verify:** extract into a fresh directory; check layout/allowlist/runtime/version/DPI; smoke startup/Exit where CI supports it. Interactive tray/capture is a separate Windows check. Generate SHA-256 checksums and dependency/source manifest.
-7. **Publish:** update app version/changelog, commit/push the release step, tag `app-vX.Y.Z`, validate tag/version agreement, run the same verified pipeline, publish unsigned ZIP/checksums/source material and release notes to `lfmnovaes/mvp-tracker`. Limit write permission to release jobs and avoid duplicate publication.
+7. **Prepare/publish:** update app version/changelog, commit/push the release step, tag `app-vX.Y.Z`, validate tag/version agreement, and run the same verified pipeline to create a draft with unsigned ZIP/checksums/source material and release notes. Publish the draft after user acceptance. Limit write permission to release jobs and avoid duplicate publication.
 8. **Validate downloaded release:** clean Windows 11 x64 launch, prerequisites, persistent tray, manual/core flows, fixed timezone, logs, portable data and upgrade. Document unsigned Windows reputation prompts accurately.
 9. **Upgrade/rollback:** back up current nonexpired data/settings before migration; restore/migrate explicitly when extracting a new version. Keep the last compatible release available. Correct published defects with a new patch version rather than silently replacing assets.
 

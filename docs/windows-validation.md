@@ -1,6 +1,6 @@
 # Windows / private-group check
 
-Use 0.1.8.1. These are the remaining user checks for Step 8; the automated tests already cover the underlying timer/merge/scheduler rules. Record pass/fail and copy diagnostics if a failure occurs.
+Use 0.1.8.2. These are the remaining user checks for Step 8; the automated tests already cover the underlying timer/merge/scheduler rules. Use the [test and paste-back template](test-report.md) to record pass/fail and copied diagnostics.
 
 1. **Upgrade and local work:** Exit through the tray, keep `data/`, replace app files, reopen. Confirm URL/settings survive. Move/resize on a second monitor, hide/Exit/relaunch and confirm bounds; disconnect that monitor and confirm a visible fallback. Add/edit a timer, export/import it, restart, and check its kill/gathered times and killer. A gathered-only update should highlight the row for two seconds; an unchanged sync should not. Check Spawned-first sorting and freshness colors, including at your usual DPI.
 2. **Capture and tray:** With Npcap installed, enter the game, revisit a grave, then switch channel/region. Verify boss, location, channel and observed character. X should hide while capture continues; F7/F8/F9 and tray Show/Settings/Exit should work. Test a game restart and sleep/resume.
