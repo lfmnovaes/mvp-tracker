@@ -1,4 +1,4 @@
-import { errorCategory, type LogContext } from "./log-context";
+import { errorContext, type LogContext } from "./log-context";
 import { resolve, join } from "node:path";
 import { NeutralinoClient } from "./neutralino-client";
 import { SettingsStore } from "./storage";
@@ -34,7 +34,7 @@ function flushObservations() {
   const now = Date.now();
   const valid = entries.filter(entry => {
     try { parseObservation(entry, now); return true; }
-    catch { logger?.write("capture-packet-rejected"); return false; }
+    catch { logger?.write("capture-packet-rejected", { reason: "observation-invalid" }); return false; }
   });
   return valid.length ? timers.ingest(valid) : false;
 }
@@ -70,7 +70,7 @@ async function exitApp() {
   sync?.close();
   sharing?.close();
   clearInterval(cleanupTimer); await capture?.stop(); flushObservations(); timers?.close();
-  logger?.write("stopped");
+  logger?.write("stopped", { component: "backend", operation: "shutdown" });
   try { send("exit"); } catch { }
   if (companion) {
     await Promise.race([companion.exited, Bun.sleep(1500)]);
@@ -91,8 +91,8 @@ native.onClose(() => {
 });
 process.on("SIGINT", () => void exitApp());
 process.on("SIGTERM", () => void exitApp());
-process.on("uncaughtException", () => { logger?.write("fatal"); void exitApp(); });
-process.on("unhandledRejection", () => { logger?.write("fatal"); void exitApp(); });
+process.on("uncaughtException", error => { logger?.write("fatal", { ...errorContext(error), component: "backend", operation: "uncaughtException" }); void exitApp(); });
+process.on("unhandledRejection", error => { logger?.write("fatal", { ...errorContext(error), component: "backend", operation: "unhandledRejection" }); void exitApp(); });
 native.on("windowClose", () => {
   if (ready && state.trayReady) void shellAction("hide");
   else void showFallback();
@@ -109,7 +109,7 @@ native.on(REQUEST, raw => {
         if (!ready || exiting) throw new Error();
         const result = request.method === "sharingReset" ? (await sync.reset(request.input), sync.snapshot()) : await sharing.test();
         await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
-      } catch (e) { logger?.write("rpc-failed", { component: "backend", operation, requestId: id, durationMs: performance.now() - began, category: errorCategory(e) }); if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: e instanceof Error && e.message.startsWith("Sharing:") ? e.message : "Sharing: connection action unavailable. Retry after startup." } }).catch(() => {}); }
+      } catch (e) { logger?.write("rpc-failed", { component: "backend", operation, requestId: id, durationMs: performance.now() - began, ...errorContext(e) }); if (id) await native.call("app.broadcast", { event: RESPONSE, data: { id, error: e instanceof Error && e.message.startsWith("Sharing:") ? e.message : "Sharing: connection action unavailable. Retry after startup." } }).catch(() => {}); }
     })(); return;
   }
   queue = queue.then(async () => {
@@ -211,7 +211,7 @@ native.on(REQUEST, raw => {
       }
       await native.call("app.broadcast", { event: RESPONSE, data: { id, result } });
     } catch (error) {
-      logger?.write("rpc-failed", { component: "backend", operation, requestId: id, durationMs: performance.now() - began, category: errorCategory(error) });
+      logger?.write("rpc-failed", { component: "backend", operation, requestId: id, durationMs: performance.now() - began, ...errorContext(error) });
       // Only our deliberate validation/storage errors reach the UI; native payloads never do.
       const message = error instanceof Error && /^(Logs could|Sharing:|Invalid|Import|Export|Kill time|Use F|Each enabled|Portable|Settings could|Clipboard|The Windows|Tray is|Unknown method)/.test(error.message)
         ? error.message : "The action failed. Please retry or restart MVP Tracker.";
@@ -239,17 +239,17 @@ async function initialize(trayReady: boolean) {
   capture = new CaptureService(settings.capture, observation => {
     const key = slotKey(observation), pending = pendingObservations.get(key);
     if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);
-  }, undefined, Date.now, event => logger.write(event, { component: "capture" }));
+  }, undefined, Date.now, (event, context) => logger.write(event, context));
   void capture.restart();
   if (!trayReady) state.warning = "Tray is unavailable. Keep the window open; Exit is available in Settings.";
-  logger.write("started", { component: "backend", operation: "startup" }); if (!store.writable) logger.write("storage-unavailable");
+  logger.write("started", { component: "backend", operation: "startup" }); if (!store.writable) logger.write("storage-unavailable", { reason: "settings-storage" });
   ready = true;
   if (companion?.exitCode === null) send("configure", { hotkeys: settings.hotkeys });
   await shellAction("show");
   await publish({ type: "snapshot", value: state });
   let cleanupTicks = 0;
   let timerWarning = timers.warning;
-  if (timerWarning) logger.write("timer-storage-unavailable");
+  if (timerWarning) logger.write("timer-storage-unavailable", { reason: "timer-storage" });
   cleanupTimer = setInterval(() => {
     if (exiting) return;
     capture?.tick();
@@ -264,7 +264,7 @@ async function initialize(trayReady: boolean) {
     if (++cleanupTicks % 30 === 0) timers.flush();
     const warningChanged = timerWarning !== timers.warning;
     if (warningChanged) {
-      logger.write(timers.warning ? "timer-storage-unavailable" : "timer-storage-restored");
+      logger.write(timers.warning ? "timer-storage-unavailable" : "timer-storage-restored", { component: "storage", operation: "persist", reason: "timer-storage" });
       if (timers.warning || state.warning === timerWarning) state.warning = timers.warning ?? store.warning;
       timerWarning = timers.warning;
     }
@@ -301,12 +301,12 @@ try {
         } else if (message.type === "action") {
           if (["exit", "settings", "add", "sync", "show", "hide", "toggle", "minimize"].includes(String(message.action))) await shellAction(String(message.action));
         } else if (message.type === "warning" && ready) {
-          if (message.message === "window-placement-unavailable") logger.write("storage-unavailable", { component: "native", category: "storage" });
+          if (message.message === "window-placement-unavailable") logger.write("storage-unavailable", { component: "native", category: "storage", reason: "window-placement" });
           await publish({ type: "snapshot", value: state });
         }
       }
     }
-  })().catch(() => { logger?.write("native-unavailable"); });
+  })().catch((error) => { logger?.write("native-unavailable", { component: "native", operation: "startup", ...errorContext(error) }); });
   void companion.exited.then(async () => {
     clearTimeout(timeout);
     if (exiting) return;

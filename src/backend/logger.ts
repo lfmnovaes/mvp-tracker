@@ -27,14 +27,17 @@ export class Logger {
       this.prune(); const at = this.now(), clean = cleanContext(context);
       const failure = /failed|unavailable|warning|rejected|fatal|timeout|exited/.test(event);
       if (failure) {
-        const key = JSON.stringify([event, clean.component, clean.operation, clean.category, clean.phase]);
+        clean.component ??= event.startsWith("capture") ? "capture" : event.includes("storage") ? "storage" : event.startsWith("native") ? "native" : "backend";
+        clean.operation ??= clean.component === "capture" ? "capture" : clean.component === "storage" ? "persist" : "shell";
+        clean.category ??= event.includes("storage") ? "storage" : event.includes("rejected") ? "validation" : "unknown";
+        const key = JSON.stringify([event, clean.component, clean.operation, clean.category, clean.phase, clean.reason, clean.errorCode, clean.site]);
         const previous = this.repeats.get(key);
         if (previous && at >= previous.at && at - previous.at < 60000) { previous.count++; return; }
         if (previous?.count) clean.suppressed = previous.count;
         if (!this.repeats.has(key) && this.repeats.size >= 128) this.repeats.delete(this.repeats.keys().next().value!);
         this.repeats.set(key, { at, count: 0 });
       }
-      const line = JSON.stringify({ time: new Date(at).toISOString(), event, version: VERSION, level: failure ? "error" : "info", ...clean }) + "\n";
+      const line = JSON.stringify({ time: new Date(at).toISOString(), event, version: VERSION, level: /warning|rejected/.test(event) ? "warning" : failure ? "error" : "info", ...clean }) + "\n";
       if (Buffer.byteLength(line) > this.maxBytes) return;
       if (existsSync(this.file(0)) && statSync(this.file(0)).size + Buffer.byteLength(line) > this.maxBytes) {
         if (existsSync(this.file(this.maxFiles - 1))) unlinkSync(this.file(this.maxFiles - 1));

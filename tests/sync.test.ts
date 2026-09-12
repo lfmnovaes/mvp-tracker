@@ -91,6 +91,17 @@ test("interval changes rebase the timer, Stop cancels scheduled work and sleep p
   expect(clock.jobs.size).toBe(1); engine.stop(); expect(clock.jobs.size).toBe(0); await clock.advance(600000, engine); expect(transport.calls).toHaveLength(count + 1);
   engine.request(); await engine.settled(); expect(transport.calls).toHaveLength(count + 2); expect(engine.snapshot().running).toBe(false);
 });
+test("five-second auto sync waits for completion and rebases manual sync without duplicate jobs", async () => {
+  const { engine, clock, transport } = fixture(); engine.setInterval(5); engine.start(); await engine.settled();
+  const count = transport.calls.length;
+  await clock.advance(4999, engine); expect(transport.calls).toHaveLength(count);
+  await clock.advance(1, engine); expect(transport.calls).toHaveLength(count + 1);
+  let release!: () => void; transport.hold = new Promise(r => { release = r; });
+  engine.request(); engine.request(); engine.request();
+  expect(clock.jobs.size).toBe(0); expect(engine.snapshot().queued).toBe(true);
+  release(); await engine.settled(); await clock.advance(0, engine);
+  expect(clock.jobs.size).toBe(1); expect(engine.snapshot().nextAt).toBe(clock.now() + 5000);
+});
 test("changing interval or stopping during a request applies its reply without overlapping", async () => {
   const { engine, clock, transport } = fixture(); engine.request(); await engine.settled();
   let release!: () => void; transport.hold = new Promise(r => { release = r; }); engine.start(); engine.setInterval(10);

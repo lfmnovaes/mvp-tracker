@@ -1,6 +1,6 @@
 # MVP Tracker third-party notices
 
-MVP Tracker is Copyright (C) 2026 Luis Fernando and distributed under GNU AGPL v3 only; see LICENSE.txt. Source and build instructions are included in each portable package's source directory and published at https://github.com/lfmnovaes/mvp-tracker.
+MVP Tracker is Copyright (C) 2026 Luis Fernando and distributed under GNU AGPL v3 only; see LICENSE.txt. Matching corresponding source and build instructions are provided in the source ZIP alongside each portable release and at https://github.com/lfmnovaes/mvp-tracker. Required dependency licenses remain in the portable licenses directory.
 
 `src/backend/neutralino-client.ts` adapts the extension transport from kar-mi's spirit-vale-overlay at revision `4f1f8000bbdb19f7234aa9e73ddb89106fe3d389`, originally `apps/desktop/src/backend/neutralino-client.ts`, licensed GNU AGPL v3. Changes add timeouts and size bounds. All other Step 1 app source and the icon are new; no game artwork is included.
 

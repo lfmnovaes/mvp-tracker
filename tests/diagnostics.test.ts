@@ -6,7 +6,7 @@ import { Diagnostics } from "../src/backend/diagnostics";
 import { Logger } from "../src/backend/logger";
 import { defaults, VERSION, type Snapshot } from "../src/shared/protocol";
 import { emptyCapture } from "../src/shared/capture";
-import { errorCategory, type LogContext } from "../src/backend/log-context";
+import { errorCategory, errorContext, captureWarning, type LogContext } from "../src/backend/log-context";
 test("diagnostic exports exclude private settings, names, adapter labels and arbitrary log fields", () => {
   const root = mkdtempSync(join(tmpdir(), "mvp-diagnostics-test-"));
   try {
@@ -52,5 +52,23 @@ test("structured logs keep diagnostic context but reject names, paths, raw error
     expect(JSON.stringify(logger.recent())).not.toContain("SECRET");
     expect(errorCategory(new Error("Sharing: The request timed out."))).toBe("timeout");
     logger.clear(); logger.write("sharing-failed", fields); expect(logger.recent()).toHaveLength(1);
+  } finally { if (!root.startsWith(join(tmpdir(), "mvp-diagnostics-test-"))) throw new Error("Unsafe cleanup."); rmSync(root, { recursive: true, force: true }); }
+});
+test("capture warning reasons and exception sites add context without leaking error text", () => {
+  const root = mkdtempSync(join(tmpdir(), "mvp-diagnostics-test-"));
+  try {
+    const logger = new Logger(root);
+    expect(captureWarning("suppressed 20 duplicate packets on SECRET-ADAPTER")).toBe("relay-duplicates");
+    expect(captureWarning("skipped FishNet decode: SECRET-PACKET")).toBe("fishnet-decode");
+    expect(captureWarning("gave up on packets that could not be attributed to SECRET")).toBe("unattributed-traffic");
+    const error = new TypeError("SECRET-NAME SECRET-URL"); error.stack = "TypeError: SECRET\n at fn (C:\\SECRET\\extensions\\backend\\index.js:123:45)";
+    expect(errorContext(error)).toEqual({ category: "unknown", errorType: "TypeError", site: "backend:123:45" });
+    logger.write("fatal", { operation: "uncaughtException", ...errorContext(error) });
+    logger.write("capture-warning", { reason: "relay-duplicates" });
+    logger.write("capture-warning", { reason: "fishnet-decode" });
+    const rows = logger.recent(); expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ component: "backend", operation: "uncaughtException", category: "unknown" });
+    expect(rows[1]).toMatchObject({ level: "warning", component: "capture", operation: "capture", reason: "relay-duplicates" });
+    expect(JSON.stringify(rows)).not.toContain("SECRET");
   } finally { if (!root.startsWith(join(tmpdir(), "mvp-diagnostics-test-"))) throw new Error("Unsafe cleanup."); rmSync(root, { recursive: true, force: true }); }
 });

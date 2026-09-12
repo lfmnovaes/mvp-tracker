@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.8.2**. Local tracking works without Convex.
+Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.9**. Local tracking works without Convex.
 
 ## First run
 
@@ -28,7 +28,7 @@ bun run setup
 bun run dev
 ```
 
-Later: `bun run dev`. After pulling dependency changes: run `bun install --frozen-lockfile` first. Exit any running copy before rebuilding. `bun run check` checks both TypeScript projects and runs unit tests; `bun run package` creates the portable ZIP in `release/`.
+Later: `bun run dev`. After dependency changes: `bun install --frozen-lockfile` first. Exit before rebuilding. `bun run check` checks both TypeScript projects and unit tests; `bun run package` creates separate runtime/source ZIPs in `release/`.
 
 ## Convex owner only
 
@@ -44,6 +44,6 @@ Keep the CLI-generated `.env.local`: `CONVEX_DEPLOYMENT` selects the owner's dep
 
 Reset clears tracker data and restores metadata for the deployed backend; schema/function updates require the owner's CLI command. Anyone with the deployment URL can use the tracker endpoints. There is no group-key or integration-environment setup.
 
-For errors, use Settings → Capture & diagnostics → Copy diagnostics. [Test and paste-back checklist](docs/test-report.md) · [Troubleshooting](docs/troubleshooting.md). [Release builds and checksums](docs/releases.md).
+For errors, use Settings → Diagnostics → Copy diagnostics. [Acceptance tests and report template](docs/testing.md) · [Troubleshooting](docs/troubleshooting.md) · [Release builds and checksums](docs/releases.md).
 
-Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Implementation plan](plan.md) · [latest verification](docs/step-9-verification.md).
+Licensed under **AGPL-3.0-only**; see [notices](THIRD_PARTY_NOTICES.md). [Plan](docs/plan.md) · [Verification](docs/verification.md) · [Data model](docs/data-model.md) · [Future improvements](docs/improvements.md).

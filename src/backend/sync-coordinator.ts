@@ -5,7 +5,8 @@ import type { Selection } from "../domain/catalog";
 import { pendingUploads, validateSyncResult, type SyncCache } from "../domain/sync";
 import { SHARING_PROTOCOL, type Connection, type Dataset, type Discovery, type SyncInput, type SyncResult, type PruneResult } from "../shared/sharing";
 import type { TimerStore } from "./timer-store";
-export const SYNC_INTERVALS = [10, 20, 30, 60, 120, 300] as const;
+import { SYNC_INTERVALS } from "../shared/sync-intervals";
+export { SYNC_INTERVALS } from "../shared/sync-intervals";
 export interface SyncStatus { running: boolean; busy: boolean; queued: boolean; phase: "stopped" | "waiting" | "syncing" | "cleaning" | "backoff" | "paused" | "resetting"; interval: number; nextAt?: number; lastAt?: number; message: string; resetPending: boolean; dataset?: Dataset }
 export interface SyncTransport {
   credentials(): Connection;

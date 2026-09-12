@@ -2,6 +2,7 @@ import { decodeBossGravestone, type BossGravestone, type CapturedFishNetPacket }
 import { FishNetCharacterTracker } from "@kar-mi/spirit-vale-tools-character";
 import { regionFromInstance, type Region } from "../domain/catalog";
 import { parseObservation, type Observation } from "../domain/timers";
+import type { LogContext } from "./log-context";
 
 export interface CaptureContext {
   region?: Region;
@@ -25,10 +26,10 @@ export class CapturePackets {
   private awaitingContext = true;
   private authenticated?: string;
   constructor(private readonly emit: (observation: Observation) => void,
-    private readonly now = Date.now, private readonly invalid = () => {}) {}
+    private readonly now = Date.now, private readonly invalid: (reason: LogContext["reason"]) => void = () => {}) {}
 
   snapshot(): CaptureContext {
-    for (const [key, entry] of this.pending) if (this.now() - entry.gatheredAt > 10000) { this.pending.delete(key); this.invalid(); }
+    for (const [key, entry] of this.pending) if (this.now() - entry.gatheredAt > 10000) { this.pending.delete(key); this.invalid("pending-expired"); }
     return { ...this.context, unresolved: this.pending.size };
   }
   reset(clearClosed = true) {
@@ -131,15 +132,15 @@ export class CapturePackets {
     const entry = { grave, gatheredAt: transport.capturedAt.getTime(), observedByCharacter: this.context.character };
     if ((!this.context.region || !this.context.channel) && this.awaitingContext) {
       this.snapshot();
-      if (!Number.isSafeInteger(entry.gatheredAt) || now - entry.gatheredAt > 10000 || entry.gatheredAt > now + 30000) { this.invalid(); return; }
+      if (!Number.isSafeInteger(entry.gatheredAt) || now - entry.gatheredAt > 10000 || entry.gatheredAt > now + 30000) { this.invalid("timestamp-invalid"); return; }
       this.pending.set(`${packet.objectId}:${grave.mobId}`, entry);
-      if (this.pending.size > 64) { this.pending.delete(this.pending.keys().next().value!); this.invalid(); }
+      if (this.pending.size > 64) { this.pending.delete(this.pending.keys().next().value!); this.invalid("pending-overflow"); }
       return;
     }
     this.record(entry, now);
   }
   private record({ grave, gatheredAt, observedByCharacter }: PendingGrave, now: number) {
-    if (!this.context.region || !this.context.channel) { this.invalid(); return; }
+    if (!this.context.region || !this.context.channel) { this.invalid("unknown-context"); return; }
     try {
       const observation = parseObservation({
         observationId: crypto.randomUUID(), mobId: grave.mobId,
@@ -149,6 +150,6 @@ export class CapturePackets {
         killedBy: grave.killedBy || undefined, observedByCharacter,
       }, now);
       this.emit(observation);
-    } catch { this.invalid(); }
+    } catch { this.invalid("observation-invalid"); }
   }
 }

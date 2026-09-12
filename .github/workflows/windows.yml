@@ -85,9 +85,9 @@ jobs:
           $manifest = Get-Content "assets/$stem.manifest.json" -Raw | ConvertFrom-Json
           if ($manifest.version -ne $version -or $manifest.sourceCommit -ne $env:GITHUB_SHA -or $manifest.sourceDirty) { throw 'Release provenance mismatch.' }
           foreach ($line in Get-Content "assets/$stem.sha256") {
-            if ($line -notmatch '^([a-f0-9]{64})  (MVP-Tracker-[0-9.]+-windows-x64\.(zip|manifest\.json))$') { throw 'Invalid checksum record.' }
+            if ($line -notmatch '^([a-f0-9]{64})  (MVP-Tracker-[0-9.]+-(?:windows-x64\.(?:zip|manifest\.json)|source\.zip))$') { throw 'Invalid checksum record.' }
             $expected = $Matches[1]; $file = $Matches[2]
             if ((Get-FileHash -LiteralPath "assets/$file" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Release checksum mismatch.' }
           }
-          gh release create $env:GITHUB_REF_NAME "assets/$stem.zip" "assets/$stem.manifest.json" "assets/$stem.sha256" --verify-tag --draft --title "MVP Tracker $version" --notes-file assets/RELEASE-NOTES.md
+          gh release create $env:GITHUB_REF_NAME "assets/$stem.zip" "assets/MVP-Tracker-$version-source.zip" "assets/$stem.manifest.json" "assets/$stem.sha256" --verify-tag --draft --title "MVP Tracker $version" --notes-file assets/RELEASE-NOTES.md
           if ($LASTEXITCODE -ne 0) { throw 'Release already exists or creation failed; no assets were overwritten.' }

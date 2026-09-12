@@ -15,6 +15,11 @@ test("portable preferences survive restart without temporary files", () => {
   expect(new SettingsStore(root).load()).toEqual(changed);
   expect(readdirSync(join(root, "data"))).toEqual(["settings.json"]);
 });
+test("sync preferences migrate the removed five-minute choice and accept five seconds", () => {
+  expect(parseSettings({ ...defaults(), schemaVersion: 6, syncInterval: 300 }).syncInterval).toBe(120);
+  expect(parseSettings({ ...defaults(), syncInterval: 5 }).syncInterval).toBe(5);
+  expect(() => parseSettings({ ...defaults(), syncInterval: 300 })).toThrow();
+});
 test("invalid or future settings preserve original bytes, and valid save recovers", () => {
   const root = temporary(); const store = new SettingsStore(root);
   writeFileSync(store.file, '{"schemaVersion":99}');
