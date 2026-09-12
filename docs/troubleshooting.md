@@ -18,4 +18,4 @@ Capture reasons: relay-duplicates (VPN/proxy duplicates), unattributed-traffic/u
 
 Equivalent errors are throttled for 60 seconds with a suppressed count. Different reasons remain distinct. Unchanged sync is quiet; health samples expose counts and revision. A new observation, expiry or deletion can legitimately advance revision.
 
-For reproducible reports, follow [testing.md](testing.md). Capture/game/shell status are independent: capture describes packet collection, game describes process detection, and Shell ready means the native tray/hotkey helper is available. Shell starting/degraded indicates startup or fallback; it says nothing about whether a boss is alive.
+For reproducible reports, follow [testing.md](testing.md). Capture describes packet collection; game describes process detection. The header shows Starting… before its first backend snapshot, Backend reconnecting… after connection loss, and Shell ready while connected. Shell ready does not guarantee capture or the native tray: check Diagnostics → System tray separately. None of these labels proves a boss is alive.
