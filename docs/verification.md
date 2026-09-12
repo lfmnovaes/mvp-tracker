@@ -6,7 +6,9 @@ Both TypeScript projects and **88 tests** (76 Bun +12 Convex) pass. Added covera
 
 Windows build and archive verification pass: 15 runtime files, three x64 executables, matching source archive, matching versions/hashes and no private state. Tampered runtime and source content are both rejected. Synthetic 25-iteration merge/search/compressed-export benchmark: 42 slots median 0.42 ms/max 2.00 ms; 594 slots median 3.14 ms/max 4.38 ms. These are local fixture measurements, not live service latency.
 
-Documentation was reduced to nine focused files, with the root plan moved into docs. The existing application log (141,904 bytes) was cleared; settings, timers and the remote database were preserved. GitHub CI/draft evidence is added after completion.
+Documentation was reduced to nine focused files, with the root plan moved into docs. Relative documentation links resolve. The existing application log (141,904 bytes) was cleared; settings, timers and the remote database were preserved.
+
+[Clean push CI](https://github.com/lfmnovaes/mvp-tracker/actions/runs/34687191217) and [tagged build/draft job](https://github.com/lfmnovaes/mvp-tracker/actions/runs/34687261496) passed at 0eba047, tag app-v0.1.9. The [draft release](https://github.com/lfmnovaes/mvp-tracker/releases/tag/untagged-5db3d42d39355a9682c0) has four assets: runtime ZIP (41,246,811 bytes), source ZIP (204,805 bytes), external manifest and checksums. CI runtime SHA-256: c462fec3a732cb4dd66c2b63ab97e1b54a6cb11e20b7ab39caf4f93d3a638f14. The clean local build uses the same commit and has its own checksum. This evidence-only update follows the tag; verified assets are unchanged and unpublished.
 
 Interactive tests remain in [Step 10](testing.md). No live database Reset, capture session or clean-machine acceptance is claimed for this update.
 
