@@ -3,7 +3,7 @@ import { FishNetCharacterTracker } from "@kar-mi/spirit-vale-tools-character";
 import { regionFromInstance, type Region } from "../domain/catalog";
 import { parseObservation, type Observation, type WorldPosition } from "../domain/timers";
 import type { LogContext } from "./log-context";
-import { CaptureEntities } from "./capture-entities";
+import { CapturePositions } from "./capture-positions";
 
 export interface CaptureContext {
   region?: Region;
@@ -13,7 +13,7 @@ export interface CaptureContext {
   cachedCharacter?: string;
   unresolved: number;
 }
-type PendingGrave = { grave?: BossGravestone; alive?: string; gatheredAt: number; observedByCharacter?: string; position?: WorldPosition };
+type PendingGrave = { grave: BossGravestone; gatheredAt: number; observedByCharacter?: string; position?: WorldPosition };
 
 // Uses the upstream grave decoder and local-player tracker. Unlike the overlay's
 // object fingerprint, transport identity suppresses replays without suppressing revisits.
@@ -23,18 +23,18 @@ export class CapturePackets {
   private seen = new Map<string, number>();
   private pruneAt = 0;
   private character = new FishNetCharacterTracker();
-  private entities = new CaptureEntities();
+  private entities = new CapturePositions();
   private context: Omit<CaptureContext, "unresolved"> = {};
   private pending = new Map<string, PendingGrave>();
   private awaitingContext = true;
   private authenticated?: string;
-  private features = { coordinates: true, alive: true };
+  private features = { coordinates: true };
   experiments() { return this.entities.stats(); }
   constructor(private readonly emit: (observation: Observation) => void,
     private readonly now = Date.now, private readonly invalid: (reason: LogContext["reason"]) => void = () => {}) {}
-  configure(features: { coordinates?: boolean; alive?: boolean }) {
-    const next = { coordinates: features.coordinates ?? true, alive: features.alive ?? true };
-    if (next.coordinates !== this.features.coordinates || next.alive !== this.features.alive) { this.entities.clear(); this.pending.clear(); }
+  configure(features: { coordinates?: boolean }) {
+    const next = { coordinates: features.coordinates ?? true };
+    if (next.coordinates !== this.features.coordinates) { this.entities.clear(); this.pending.clear(); }
     this.features = next;
   }
 
@@ -149,28 +149,26 @@ export class CapturePackets {
     if (transport.direction !== "inbound") return;
     const gatheredAt = transport.capturedAt.getTime();
     if (!Number.isSafeInteger(gatheredAt) || gatheredAt > now + 30000 || now - gatheredAt > 30000) { this.invalid("timestamp-invalid"); return; }
-    let detected: string | undefined;
-    try { detected = this.entities.consume(packet, gatheredAt, this.features); }
+    try { this.entities.consume(packet, gatheredAt, this.features.coordinates); }
     catch { this.entities.clear(); this.invalid("experimental-rejected"); }
-    const alive = this.features.alive ? detected : undefined;
-    if (!grave && !alive) return;
-    const entry = { grave, alive: grave ? undefined : alive, position: this.features.coordinates ? this.entities.position(packet.objectId, gatheredAt) : undefined, gatheredAt, observedByCharacter: this.context.character };
+    if (!grave) return;
+    const entry = { grave, position: this.features.coordinates ? this.entities.position(packet.objectId, gatheredAt) : undefined, gatheredAt, observedByCharacter: this.context.character };
     if ((!this.context.region || !this.context.channel) && this.awaitingContext) {
       this.snapshot();
-      this.pending.set(`${packet.objectId}:${grave?.mobId ?? alive}`, entry);
+      this.pending.set(`${packet.objectId}:${grave.mobId}`, entry);
       if (this.pending.size > 64) { this.pending.delete(this.pending.keys().next().value!); this.invalid("pending-overflow"); }
       return;
     }
     this.record(entry, now);
   }
-  private record({ grave, alive, gatheredAt, observedByCharacter, position }: PendingGrave, now: number) {
+  private record({ grave, gatheredAt, observedByCharacter, position }: PendingGrave, now: number) {
     if (!this.context.region || !this.context.channel) { this.invalid("unknown-context"); return; }
     try {
       const observation = parseObservation({
-        observationId: crypto.randomUUID(), mobId: grave?.mobId ?? alive,
+        observationId: crypto.randomUUID(), mobId: grave.mobId,
         region: this.context.region, channel: this.context.channel,
-        instanceId: this.context.instanceId, ...(grave ? { diedAt: Math.round(grave.diedAtMs), killedBy: grave.killedBy || undefined } : {}),
-        gatheredAt, source: grave ? "gravestone" : "alive", timePrecision: "millisecond", position, observedByCharacter,
+        instanceId: this.context.instanceId, diedAt: Math.round(grave.diedAtMs), killedBy: grave.killedBy || undefined,
+        gatheredAt, source: "gravestone", timePrecision: "millisecond", position, observedByCharacter,
       }, now);
       this.emit(observation);
     } catch { this.invalid("observation-invalid"); }

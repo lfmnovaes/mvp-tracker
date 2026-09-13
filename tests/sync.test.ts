@@ -26,7 +26,7 @@ class Transport implements SyncTransport {
   hold?: Promise<void>; error?: Error; resets: string[] = []; lostReset = false; receipts = new Map<string, Dataset>();
   constructor(public clock: Clock) {}
   credentials = (): Connection => ({ ...this.config }); close() {}
-  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 3, schema: 1, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
+  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 4, schema: 2, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
   async sync(input: SyncInput): Promise<SyncResult> {
     this.calls.push(structuredClone(input)); await this.hold;
     if (this.error) throw this.error;
@@ -73,6 +73,21 @@ test("sync persists observations and acknowledgement together; restart sends no 
   const restarted = new TimerStore(root, defaultSelection(), clock.now); expect(pendingUploads(restarted.snapshot(), restarted.syncState(), defaultSelection(), now)).toEqual([]);
   engine.request(); await engine.settled(); expect(transport.calls.at(-1)?.observations).toEqual([]); expect(transport.calls.at(-1)?.sinceRevision).toBe(transport.dataset.revision);
   expect(readFileSync(store.file, "utf8")).toBe(JSON.stringify(persisted) + "\n");
+});
+
+test("freshly observed pre-reset kills survive manual and automatic sync", async () => {
+  for (const automatic of [false, true]) {
+    const { engine, store, transport, clock } = fixture();
+    transport.dataset = { ...transport.dataset, generation: 2, resetAt: now - 5000, revision: 1 };
+    const fresh = o("revisited-after-reset", { source: "gravestone", timePrecision: "millisecond", diedAt: now - 600000, gatheredAt: now });
+    store.ingest([fresh]);
+    if (automatic) engine.start(); else engine.request();
+    await engine.settled();
+    expect(store.snapshot()[0]?.observation).toEqual(fresh);
+    expect(transport.rows[0]?.observation).toEqual(fresh);
+    await clock.advance(60000, engine);
+    expect(store.snapshot()[0]?.outdated).toBe(false);
+  }
 });
 test("manual clicks coalesce and capture during upload stays pending; sender is snapshotted", async () => {
   const { engine, store, transport, clock, sender } = fixture(); engine.request(); await engine.settled();

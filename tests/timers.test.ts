@@ -40,7 +40,7 @@ test("catalog presets protect the exact Endgame group without selecting Weaver o
 
 test("Step 1 preferences migrate without losing hotkeys or startup choice", () => {
   const migrated = parseSettings({ schemaVersion: 1, startMinimized: true, clock24: true, hotkeys: { toggle: "Ctrl+F7", add: "", sync: "F9" } });
-  expect(migrated.schemaVersion).toBe(7); expect(migrated.startMinimized).toBe(true);
+  expect(migrated.schemaVersion).toBe(8); expect(migrated.startMinimized).toBe(true);
   expect(migrated.hotkeys.add).toBe(""); expect(migrated.tracking).toEqual(defaultSelection());
   expect(parseSettings({ ...defaults(), tracking: { bossIds: [], regions: [] } }).tracking).toEqual({ bossIds: [], regions: [] });
   expect(() => parseSelection({ bossIds: ["Dragon Predator Robot"], regions: ["sa"] })).toThrow();

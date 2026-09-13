@@ -140,6 +140,18 @@ test("late grave packets cannot borrow a newer object's position", () => {
   expect(h.observations[2]?.position).toBeUndefined();
 });
 
+test("partial transforms use a known baseline and despawn/reparenting invalidate positions", () => {
+  const h = harness(); h.context();
+  h.decoder.consume(h.packet({ packetName: "objectSpawn", objectId: 55, spawnLocalPosition: [1, 2, 3] }));
+  h.advance(); h.decoder.consume(h.packet({ objectId: 55, networkTransform: { position: { x: 8 }, consumed: 1 } }));
+  h.decoder.consume(h.grave()); expect(h.observations.at(-1)?.position).toEqual({ x: 8, y: 2, z: 3 });
+  h.decoder.consume(h.packet({ objectId: 55, networkTransform: { position: {}, reparented: true, consumed: 1 } }));
+  h.decoder.consume(h.grave()); expect(h.observations.at(-1)?.position).toBeUndefined();
+  h.decoder.consume(h.packet({ packetName: "objectDespawn", objectId: 55 }));
+  h.decoder.consume(h.packet({ objectId: 55, networkTransform: { position: { x: 9, y: 9, z: 9 }, consumed: 1 } }));
+  h.decoder.consume(h.grave()); expect(h.observations.at(-1)?.position).toBeUndefined();
+});
+
 test("malformed experimental spawn data cannot suppress a valid grave", () => {
   const h = harness(); h.context(); const grave = h.grave(true);
   grave.spawnSyncEntries!.push({ componentIndex: 1, networkBehaviourType: "MonsterController", name: "Data", index: 0, fields: undefined as never });

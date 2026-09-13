@@ -1,5 +1,5 @@
 import { isSelected, type Selection } from "./catalog";
-import { observationStart, observationExpiresAt, emptySlot, expireSlots, MAX_SLOTS, mergeObservations, parseObservation, parseSlot, slotKey, type Observation, type TimerSlot } from "./timers";
+import { observationExpiresAt, emptySlot, expireSlots, MAX_SLOTS, mergeObservations, parseObservation, parseSlot, slotKey, type Observation, type TimerSlot } from "./timers";
 import type { Dataset, SyncResult } from "../shared/sharing";
 export interface SyncCache { connectionId: string; selection: string; dataset: Dataset; known: Record<string, string>; resetRequest?: { id: string; dataset: Dataset } }
 export function parseDataset(raw: Dataset): Dataset {
@@ -29,7 +29,7 @@ export function validateSyncResult(raw: SyncResult, now: number): SyncResult {
   return { dataset, serverTime: raw.serverTime, full: raw.full, slots, acknowledged: [...raw.acknowledged], ...(raw.pruneOutdated ? { pruneOutdated: true } : {}) };
 }
 export function pendingUploads(slots: TimerSlot[], cache: SyncCache | undefined, selection: Selection, now: number): Observation[] {
-  return slots.flatMap(s => s.observation && isSelected(s, selection) && observationExpiresAt(s.observation) > now && observationStart(s.observation) > (cache?.dataset.resetAt ?? 0) && cache?.known[slotKey(s)] !== s.observation.observationId ? [s.observation] : []);
+  return slots.flatMap(s => s.observation && isSelected(s, selection) && observationExpiresAt(s.observation) > now && s.observation.gatheredAt > (cache?.dataset.resetAt ?? 0) && cache?.known[slotKey(s)] !== s.observation.observationId ? [s.observation] : []);
 }
 export function applySync(current: TimerSlot[], previous: SyncCache | undefined, raw: SyncResult, outgoing: Observation[], connectionId: string, selectionKey: string, selection: Selection, now: number): { slots: TimerSlot[]; cache: SyncCache } {
   const result = validateSyncResult(raw, now), dataset = result.dataset;
@@ -40,7 +40,8 @@ export function applySync(current: TimerSlot[], previous: SyncCache | undefined,
   for (const o of outgoing) if (ack.has(o.observationId)) known[slotKey(o)] = o.observationId;
   const observations = result.slots.flatMap(s => s.observation && isSelected(s, selection) ? [s.observation] : []);
   for (const row of result.slots) { if (row.observation) known[slotKey(row)] = row.observation.observationId; else delete known[slotKey(row)]; }
-  const base = expireSlots(current, now).map(s => s.observation && observationStart(s.observation) <= dataset.resetAt ? emptySlot(s, true) : s);
+  // Reset invalidates old evidence, not kills that are freshly observed afterward.
+  const base = expireSlots(current, now).map(s => s.observation && s.observation.gatheredAt <= dataset.resetAt ? emptySlot(s, true) : s);
   let slots = mergeObservations(base, observations, now, selection);
   // The authenticated/origin-bound server is authoritative for submission metadata, never evidence time.
   const remote = new Map(observations.map(o => [o.observationId, o]));

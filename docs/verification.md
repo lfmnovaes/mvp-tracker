@@ -1,14 +1,14 @@
 # Verification
 
-## 0.1.9.1
+## 0.1.9.2
 
-Both TypeScript projects and 106 tests (92 Bun +14 Convex) pass. New regressions cover map/auth/transport admission, initial process discovery, 30-second context joins, replay aging, malformed experimental data, bounded position/health joins, Alive expiry/merge/reset/acknowledgement, schema-1 migration and full-format round trips. No live capture success is inferred from synthetic fixtures.
+The sync data-loss regression was reproduced before implementation: both the desktop sync test and the Convex test failed because fresh post-reset observations with pre-reset kill times were discarded. Both passed after changing the cutoff to gatheredAt. Desktop coverage exercises manual and automatic sync; pre-reset evidence remains rejected.
 
-Windows build, runtime/source archive verification and both tamper-rejection checks pass. The runtime still contains 15 files and three x64 executables; private state is excluded. Synthetic 25-iteration merge/search/compressed-export benchmark: 42 slots median 0.57 ms/max 2.78 ms; 594 slots median 3.97 ms/max 7.11 ms.
+Both TypeScript projects and **102 tests** (88 Bun +14 Convex) pass. Coverage includes coordinate joins/validation, retired-data migration, matching protocol, configurable ten-color bands and three-second animation triggers that ignore status/submission changes.
 
-Upstream comparison and sanitized log findings are in [improvements](improvements.md). No game/UI control, live Convex deployment, Reset or log clearing was performed for this patch. The owner must deploy protocol 3; existing rows need no Reset. Live coordinate axes, positive-health coverage and intermittent misses remain in [Step 10](testing.md).
+Windows build and archive verification pass: 15 runtime files, 96 source files, three x64 executables and no private state. Both tampered runtime/source archives are rejected. Synthetic 25-iteration benchmark: 42 slots median 0.45 ms/max 2.48 ms; 594 slots median 3.25 ms/max 5.18 ms.
 
-Release CI and draft evidence will be recorded after the tagged build.
+0.1.9.1 was withdrawn: its GitHub release/assets, remote/local tag and local release archives/staging were removed. Implementation history is retained. No game/UI control or live Convex deployment/Reset was performed. Live capture and coordinate validation remain in [Step 10](testing.md).
 
 ## 0.1.9
 

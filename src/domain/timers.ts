@@ -1,17 +1,15 @@
 import { bossById, isSelected, normalizeRegion, type BossId, type Channel, type Region, type Selection } from "./catalog";
 import { CLOCK_SKEW, ELIGIBLE_AFTER, EXPIRE_AFTER, SPAWN_AFTER, parseManualTime, type ManualTime } from "./time";
 export const TIMER_SCHEMA = 2;
-export const ALIVE_FRESH_FOR = 60_000;
-export const ALIVE_EXPIRE_AFTER = 5 * 60_000;
 export interface WorldPosition { x: number; y: number; z: number }
 export const MAX_SLOTS = 33 * 6 * 3;
 export const MAX_BATCH = MAX_SLOTS * 4;
 export interface Slot { mobId: BossId; region: Region; channel: Channel }
 export interface Observation extends Slot {
   observationId: string;
-  diedAt?: number;
+  diedAt: number;
   gatheredAt: number;
-  source: "manual" | "gravestone" | "alive";
+  source: "manual" | "gravestone";
   timePrecision: "minute" | "second" | "millisecond";
   killedBy?: string;
   observedByCharacter?: string;
@@ -21,9 +19,8 @@ export interface Observation extends Slot {
   submission?: { submittedByCharacter: string | null; serverAcceptedAt: number };
 }
 export interface TimerSlot extends Slot { observation?: Observation; outdated: boolean }
-export type TimerStatus = "alive" | "seenAlive" | "waiting" | "window" | "spawned" | "outdated" | "empty";
-export function observationStart(o: Pick<Observation, "source" | "gatheredAt" | "diedAt">): number { return o.source === "alive" ? o.gatheredAt : o.diedAt!; }
-export function observationExpiresAt(o: Pick<Observation, "source" | "gatheredAt" | "diedAt">): number { return observationStart(o) + (o.source === "alive" ? ALIVE_EXPIRE_AFTER : EXPIRE_AFTER); }
+export type TimerStatus = "waiting" | "window" | "spawned" | "outdated" | "empty";
+export function observationExpiresAt(o: Pick<Observation, "diedAt">): number { return o.diedAt + EXPIRE_AFTER; }
 export function parsePosition(raw: unknown): WorldPosition {
   const p = raw as WorldPosition;
   if (!p || ![p.x, p.y, p.z].every(n => typeof n === "number" && Number.isFinite(n) && Math.abs(n) <= 100_000)) throw new Error("Invalid world position.");
@@ -49,13 +46,9 @@ function observationId(value: unknown): string {
 export function parseObservation(raw: unknown, now: number): Observation {
   const slot = parseSlot(raw); const o = raw as Observation;
   if (![o.gatheredAt, now].every(t => Number.isSafeInteger(t) && t >= 0) || o.gatheredAt > now + CLOCK_SKEW) throw new Error("Invalid or future observation timestamp. Check the system clock.");
-  if (!["manual", "gravestone", "alive"].includes(o.source) || !["minute", "second", "millisecond"].includes(o.timePrecision)) throw new Error("Invalid observation source or precision.");
-  if (o.source === "alive") {
-    if (o.diedAt !== undefined || o.killedBy !== undefined || o.timePrecision !== "millisecond") throw new Error("Invalid live observation: a sighting has no kill time or killer.");
-  } else {
-    if (!Number.isSafeInteger(o.diedAt) || o.diedAt! < 0 || o.diedAt! > now + CLOCK_SKEW || o.diedAt! > o.gatheredAt + CLOCK_SKEW) throw new Error("Invalid or future observation timestamp. Check the system clock.");
-    if (o.source === "gravestone" && o.gatheredAt >= o.diedAt! + SPAWN_AFTER + CLOCK_SKEW) throw new Error("Invalid gravestone timing: the observation contradicts the 90-minute respawn rule.");
-  }
+  if (!["manual", "gravestone"].includes(o.source) || !["minute", "second", "millisecond"].includes(o.timePrecision)) throw new Error("Invalid observation source or precision.");
+  if (!Number.isSafeInteger(o.diedAt) || o.diedAt < 0 || o.diedAt > now + CLOCK_SKEW || o.diedAt > o.gatheredAt + CLOCK_SKEW) throw new Error("Invalid or future observation timestamp. Check the system clock.");
+  if (o.source === "gravestone" && o.gatheredAt >= o.diedAt + SPAWN_AFTER + CLOCK_SKEW) throw new Error("Invalid gravestone timing: the observation contradicts the 90-minute respawn rule.");
   const fields = { killedBy: boundedText(o.killedBy, 80), observedByCharacter: boundedText(o.observedByCharacter, 80), instanceId: boundedText(o.instanceId, 160),
     replacesObservationId: o.replacesObservationId === undefined ? undefined : observationId(o.replacesObservationId) };
   let submission: Observation["submission"];
@@ -64,7 +57,7 @@ export function parseObservation(raw: unknown, now: number): Observation {
     if (name === undefined || !Number.isSafeInteger(at) || at < 0 || at > now + CLOCK_SKEW) throw new Error("Invalid submission metadata.");
     submission = { submittedByCharacter: name, serverAcceptedAt: at };
   }
-  return { ...slot, observationId: observationId(o.observationId), ...(o.source === "alive" ? {} : { diedAt: o.diedAt }), gatheredAt: o.gatheredAt, source: o.source, timePrecision: o.timePrecision,
+  return { ...slot, observationId: observationId(o.observationId), diedAt: o.diedAt, gatheredAt: o.gatheredAt, source: o.source, timePrecision: o.timePrecision,
     ...(o.position === undefined ? {} : { position: parsePosition(o.position) }),
     ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)), ...(submission ? { submission } : {}) };
 }
@@ -75,10 +68,6 @@ export function evidenceContent(o: Observation): string {
 }
 export function timerStatus(slot: TimerSlot, now: number): TimerStatus {
   if (!slot.observation) return slot.outdated ? "outdated" : "empty";
-  if (slot.observation.source === "alive") {
-    const age = now - slot.observation.gatheredAt;
-    return age >= ALIVE_EXPIRE_AFTER ? "outdated" : age >= ALIVE_FRESH_FOR ? "seenAlive" : "alive";
-  }
   const age = now - slot.observation.diedAt!;
   return age >= EXPIRE_AFTER ? "outdated" : age >= SPAWN_AFTER ? "spawned" : age >= ELIGIBLE_AFTER ? "window" : "waiting";
 }
@@ -145,6 +134,8 @@ export function parseTimerState(raw: unknown, now: number): TimerSlot[] {
     const key = slotKey(slot), previous = labels.get(key);
     labels.set(key, emptySlot(slot, saved.outdated || !!previous?.outdated));
     if (saved.observation !== undefined) {
+      // Retire the withdrawn 0.1.9.1 experiment without blocking valid saved kills.
+      if ((saved.observation as { source: string }).source === "alive") { labels.set(key, emptySlot(slot, true)); continue; }
       const observation = parseObservation(saved.observation, now);
       if (slotKey(observation) !== key) throw new Error("Invalid observation slot mismatch.");
       observations.push(observation);

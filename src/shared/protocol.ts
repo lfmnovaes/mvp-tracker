@@ -8,8 +8,9 @@ import { parseConnection, type Connection, type ConnectionStatus } from "./shari
 import type { SyncStatus } from "../backend/sync-coordinator";
 import { parseDataset } from "../domain/sync";
 import type { Dataset } from "./sharing";
+import { COLOR_INTERVALS, DEFAULT_COLOR_INTERVAL } from "./colors";
 import { SYNC_INTERVALS } from "./sync-intervals";
-export const VERSION = "0.1.9.1";
+export const VERSION = "0.1.9.2";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";
@@ -17,8 +18,9 @@ export const UPDATE = "mvp:update";
 export const ACTIONS = ["toggle", "add", "sync"] as const;
 export type Action = typeof ACTIONS[number];
 export interface Settings {
-  schemaVersion: 7;
+  schemaVersion: 8;
   syncInterval: number;
+  colorInterval: number;
   uiScale: number;
   startMinimized: boolean;
   clock24: boolean;
@@ -27,7 +29,7 @@ export interface Settings {
   sort: Sort;
   capture: CaptureSettings;
 }
-export const defaults = (): Settings => ({ schemaVersion: 7, syncInterval: 60, uiScale: 100, startMinimized: false, clock24: true,
+export const defaults = (): Settings => ({ schemaVersion: 8, syncInterval: 60, colorInterval: DEFAULT_COLOR_INTERVAL, uiScale: 100, startMinimized: false, clock24: true,
   hotkeys: { toggle: "F7", add: "F8", sync: "F9" }, tracking: defaultSelection(), sort: defaultSort(), capture: captureDefaults() });
 
 // Restrict v1 bindings to a deliberate, predictable set; empty means disabled.
@@ -38,13 +40,14 @@ export function validShortcut(value: unknown): value is string {
 export function parseSettings(value: unknown): Settings {
   if (!value || typeof value !== "object") throw new Error("Invalid settings.");
   const s = value as Omit<Settings, "schemaVersion"> & { schemaVersion: number };
-  if (![1, 2, 3, 4, 5, 6, 7].includes(s.schemaVersion) || typeof s.startMinimized !== "boolean" || typeof s.clock24 !== "boolean" || !s.hotkeys) throw new Error("Invalid settings.");
+  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(s.schemaVersion) || typeof s.startMinimized !== "boolean" || typeof s.clock24 !== "boolean" || !s.hotkeys) throw new Error("Invalid settings.");
   if (s.schemaVersion === 6 && ![10, 20, 30, 60, 120, 300].includes(s.syncInterval) || s.schemaVersion >= 7 && !SYNC_INTERVALS.includes(s.syncInterval as typeof SYNC_INTERVALS[number])) throw new Error("Invalid sync interval.");
+  if (s.schemaVersion >= 8 && !COLOR_INTERVALS.includes(s.colorInterval as typeof COLOR_INTERVALS[number])) throw new Error("Invalid color interval.");
   if (s.schemaVersion >= 4 && ![80, 90, 100, 110, 125].includes(s.uiScale)) throw new Error("Invalid UI scale.");
   if (!ACTIONS.every(a => validShortcut(s.hotkeys[a]))) throw new Error("Use F1–F24 (except reserved F12), or Ctrl/Alt/Shift plus a letter or digit.");
   const enabled = ACTIONS.map(a => s.hotkeys[a]).filter(Boolean);
   if (new Set(enabled).size !== enabled.length) throw new Error("Each enabled shortcut must be unique.");
-  return { schemaVersion: 7, syncInterval: s.schemaVersion < 6 ? 60 : s.syncInterval === 300 ? 120 : s.syncInterval, uiScale: s.schemaVersion < 4 ? 100 : s.uiScale, startMinimized: s.startMinimized, clock24: s.schemaVersion < 5 ? true : s.clock24,
+  return { schemaVersion: 8, colorInterval: s.schemaVersion < 8 ? DEFAULT_COLOR_INTERVAL : s.colorInterval, syncInterval: s.schemaVersion < 6 ? 60 : s.syncInterval === 300 ? 120 : s.syncInterval, uiScale: s.schemaVersion < 4 ? 100 : s.uiScale, startMinimized: s.startMinimized, clock24: s.schemaVersion < 5 ? true : s.clock24,
     hotkeys: { toggle: s.hotkeys.toggle, add: s.hotkeys.add, sync: s.hotkeys.sync },
     tracking: s.schemaVersion === 1 ? defaultSelection() : parseSelection(s.tracking),
     sort: s.schemaVersion === 1 ? defaultSort() : parseSort(s.sort),

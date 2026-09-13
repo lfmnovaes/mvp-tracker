@@ -8,7 +8,7 @@ import { parseRequest } from "../src/shared/protocol";
 import { Logger } from "../src/backend/logger";
 const roots: string[] = [], connections: SharingConnection[] = [];
 const config = { url: "https://test-group-123.convex.cloud" };
-const discovery = (): Discovery => ({ app: "mvp-tracker", protocol: 3, schema: 1, catalog: 1, serverTime: Date.now(), dataset: { datasetId: "dataset", generation: 1, revision: 0, resetAt: 0 } });
+const discovery = (): Discovery => ({ app: "mvp-tracker", protocol: 4, schema: 2, catalog: 1, serverTime: Date.now(), dataset: { datasetId: "dataset", generation: 1, revision: 0, resetAt: 0 } });
 function response(value: unknown) { return new Response(JSON.stringify({ status: "success", value }), { status: 200 }); }
 function make(fetcher?: typeof fetch) {
   const root = mkdtempSync(join(tmpdir(), "mvp-sharing-test-")); roots.push(root);
@@ -40,7 +40,7 @@ test("Test uses only the saved origin and a read-only query with redirects disab
   c.configure(config); expect((await c.test()).state).toBe("ready"); expect(requests).toHaveLength(1);
   expect(requests[0]?.url).toBe(config.url + "/api/query"); expect(requests[0]?.init?.redirect).toBe("error");
   const body = JSON.parse(String(requests[0]?.init?.body)); expect(body.path).toBe("timers:testConnection");
-  expect(body.args).toEqual([{ protocol: 3 }]);
+  expect(body.args).toEqual([{ protocol: 4 }]);
 });
 
 test("legacy connection migrates its URL and removes the obsolete key file", () => {
@@ -78,6 +78,6 @@ test("transport diagnostics distinguish service failures and unchanged syncs sta
   const c = new SharingConnection(root, undefined, (async () => failing ? new Response("SECRET", { status: 503 }) : response({ dataset: discovery().dataset, full: false, serverTime: Date.now(), slots: [], acknowledged: [] })) as unknown as typeof fetch, log); connections.push(c); c.configure(config);
   await c.test(); expect(log.recent().find(row => row.event === "sharing-failed")).toMatchObject({ category: "quota", operation: "test", status: 503 });
   failing = false; log.clear();
-  await c.sync({ protocol: 3, datasetId: "dataset", generation: 1, requestId: crypto.randomUUID(), sinceRevision: 0, observations: [] });
+  await c.sync({ protocol: 4, datasetId: "dataset", generation: 1, requestId: crypto.randomUUID(), sinceRevision: 0, observations: [] });
   expect(log.recent()).toEqual([]);
 });

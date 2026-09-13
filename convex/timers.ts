@@ -4,7 +4,7 @@ import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { observation } from "./schema";
 import { CATALOG_VERSION } from "../src/domain/catalog";
-import { observationStart, observationExpiresAt, compareEvidence, evidenceContent, MAX_SLOTS, parseObservation, parseSlot, slotKey } from "../src/domain/timers";
+import { observationExpiresAt, compareEvidence, evidenceContent, MAX_SLOTS, parseObservation, parseSlot, slotKey } from "../src/domain/timers";
 import { SHARING_PROTOCOL, SHARING_SCHEMA, type Dataset, type Discovery, type SharedSlot, type SyncResult } from "../src/shared/sharing";
 
 function fail(code: string): never { throw new ConvexError({ code }); }
@@ -13,7 +13,7 @@ function checkProtocol(protocol: number) {
 }
 async function meta(ctx: QueryCtx) {
   const m = await ctx.db.query("trackerMeta").withIndex("by_singleton", q => q.eq("singleton", "tracker")).unique();
-  if (m && (m.schema !== SHARING_SCHEMA || m.catalog !== CATALOG_VERSION)) fail("VERSION");
+  if (m && (![1, SHARING_SCHEMA].includes(m.schema) || m.catalog !== CATALOG_VERSION)) fail("VERSION");
   return m;
 }
 function dataset(m: Doc<"trackerMeta">): Dataset { return { datasetId: m.datasetId, generation: m.generation, revision: m.revision, resetAt: m.resetAt }; }
@@ -25,7 +25,7 @@ async function bound(ctx: QueryCtx, id: string, generation: number) {
 }
 function requestId(id: string) { if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) fail("INVALID_BATCH"); }
 function publicSlot(row: Doc<"bossTimers">, now: number): SharedSlot {
-  const active = row.observation && row.expiresAt! > now;
+  const active = row.observation && row.observation.source !== "alive" && observationExpiresAt(row.observation) > now;
   return { ...parseSlot(row), outdated: row.outdated || !!row.observation && !active, revision: row.revision, ...(active ? { observation: row.observation as ReturnType<typeof parseObservation> } : {}) };
 }
 async function result(ctx: QueryCtx, m: Doc<"trackerMeta">, since: number | null, now: number, acknowledged: string[] = []): Promise<SyncResult> {
@@ -40,7 +40,7 @@ export const testConnection = query({ args: { protocol: v.number() }, handler: a
   return { app: "mvp-tracker", protocol: SHARING_PROTOCOL, schema: SHARING_SCHEMA, catalog: CATALOG_VERSION, serverTime: Date.now(), dataset: m ? dataset(m) : null };
 } });
 async function initializeDataset(ctx: MutationCtx): Promise<Dataset> {
-  const existing = await meta(ctx); if (existing) return dataset(existing);
+  const existing = await meta(ctx); if (existing) { await upgrade(ctx, existing); return dataset(existing); }
   const id = await ctx.db.insert("trackerMeta", { singleton: "tracker", schema: SHARING_SCHEMA, catalog: CATALOG_VERSION, datasetId: "initializing", generation: 1, resetAt: 0, revision: 0 });
   await ctx.db.patch(id, { datasetId: String(id) }); return dataset((await ctx.db.get(id))!);
 }
@@ -71,15 +71,24 @@ async function expiryMetadata(ctx: MutationCtx, m: Doc<"trackerMeta">) {
   m.nextExpiry = first?.expiresAt;
   await ctx.db.patch(m._id, { revision: m.revision, nextExpiry: m.nextExpiry, cleanupToken: m.cleanupToken, cleanupJob: m.cleanupJob });
 }
+async function upgrade(ctx: MutationCtx, m: Doc<"trackerMeta">) {
+  if (m.schema === SHARING_SCHEMA) return;
+  const rows = await ctx.db.query("bossTimers").take(MAX_SLOTS + 1); if (rows.length > MAX_SLOTS) fail("CAPACITY");
+  const retired = rows.filter(row => row.observation?.source === "alive");
+  if (retired.length) m.revision++;
+  for (const row of retired) await ctx.db.patch(row._id, { observation: undefined, expiresAt: undefined, outdated: true, revision: m.revision });
+  m.schema = SHARING_SCHEMA;
+  await ctx.db.patch(m._id, { schema: m.schema }); await expiryMetadata(ctx, m);
+}
 export const cleanup = internalMutation({ args: { generation: v.number(), token: v.number() }, handler: async (ctx, args): Promise<void> => {
   const m = await meta(ctx); if (!m || m.generation !== args.generation || m.cleanupToken !== args.token) return;
-  m.cleanupJob = undefined; await expire(ctx, m, Date.now()); await expiryMetadata(ctx, m);
+  m.cleanupJob = undefined; await upgrade(ctx, m); await expire(ctx, m, Date.now()); await expiryMetadata(ctx, m);
 } });
 export const sync = mutation({ args: {
   protocol: v.number(), datasetId: v.string(), generation: v.number(), sinceRevision: v.union(v.number(), v.null()), requestId: v.string(), sentByCharacter: v.optional(v.union(v.string(), v.null())), observations: v.array(observation),
 }, handler: async (ctx, args): Promise<SyncResult> => {
   checkProtocol(args.protocol); const m = await bound(ctx, args.datasetId, args.generation); requestId(args.requestId);
-  const now = Date.now(), before = m.revision;
+  const now = Date.now(); await upgrade(ctx, m); const before = m.revision;
   if (args.sinceRevision !== null && (!Number.isSafeInteger(args.sinceRevision) || args.sinceRevision < 0) || args.observations.length > MAX_SLOTS || JSON.stringify(args.observations).length > 512000) fail("INVALID_BATCH");
   const sender = args.sentByCharacter?.trim();
   if (sender && (sender.length > 80 || /[\u0000-\u001f\u007f]/.test(sender))) fail("CHARACTER_REQUIRED");
@@ -95,7 +104,7 @@ export const sync = mutation({ args: {
   }
   await expire(ctx, m, now);
   for (const o of incoming) {
-    if (observationExpiresAt(o) <= now || observationStart(o) <= m.resetAt) continue;
+    if (observationExpiresAt(o) <= now || o.gatheredAt <= m.resetAt) continue;
     const key = slotKey(o), old = await ctx.db.query("bossTimers").withIndex("by_slot", q => q.eq("key", key)).unique();
     if (old?.observation && compareEvidence(o, old.observation as typeof o) <= 0) continue;
     m.revision = before + 1;
@@ -107,9 +116,10 @@ export const sync = mutation({ args: {
 } });
 export const pruneOutdated = mutation({ args: { protocol: v.number(), datasetId: v.string(), generation: v.number() }, handler: async (ctx, args) => {
   checkProtocol(args.protocol); const m = await bound(ctx, args.datasetId, args.generation), now = Date.now();
+  await upgrade(ctx, m);
   const rows = await ctx.db.query("bossTimers").take(MAX_SLOTS + 1); if (rows.length > MAX_SLOTS) fail("CAPACITY");
   // Recheck actual evidence in this transaction; never trust a stale client list or outdated flag on a live observation.
-  const expired = rows.filter(row => row.observation ? observationExpiresAt(row.observation) <= now : row.outdated);
+  const expired = rows.filter(row => row.observation ? row.observation.source === "alive" || observationExpiresAt(row.observation) <= now : row.outdated);
   for (const row of expired) await ctx.db.delete(row._id);
   if (expired.length) {
     m.revision++; m.prunedRevision = m.revision;

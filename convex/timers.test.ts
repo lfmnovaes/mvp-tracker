@@ -7,9 +7,19 @@ import { EXPIRE_AFTER, MINUTE } from "../src/domain/time";
 import { BOSSES, REGIONS } from "../src/domain/catalog";
 const modules = import.meta.glob(["./**/*.ts", "./**/*.js", "!./**/*.test.ts"]);
 const now = Date.UTC(2026, 8, 11, 18);
-const access = { protocol: 3 };
+const access = { protocol: 4 };
 const slot = { mobId: "NightmarePaladinBoss", region: "sa", channel: 2 };
 const evidence = (id = "evidence", patch = {}) => ({ ...slot, observationId: id, diedAt: now - 70 * MINUTE, gatheredAt: now - MINUTE, source: "manual" as const, timePrecision: "second" as const, killedBy: "Killer", observedByCharacter: "Observer", ...patch });
+
+test("a fresh post-reset grave observation is accepted even when its kill preceded Reset", async () => {
+  const t = convexTest(schema, modules);
+  const dataset = await t.mutation(api.timers.ensureInitialized, { protocol: 4 });
+  const reset = await t.mutation(api.timers.reset, { protocol: 4, datasetId: dataset.datasetId, generation: dataset.generation, requestId: "fresh-reset" });
+  vi.setSystemTime(now + 1000);
+  const fresh = evidence("revisited-after-reset", { source: "gravestone", timePrecision: "millisecond", gatheredAt: now + 1000 });
+  const response = await t.mutation(api.timers.sync, { protocol: 4, datasetId: reset.datasetId, generation: reset.generation, sinceRevision: null, requestId: "fresh-revisit", observations: [fresh] });
+  expect(response.slots[0]?.observation).toMatchObject(fresh);
+});
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); });
 afterEach(() => { vi.useRealTimers(); });
 async function setup() {
@@ -33,29 +43,23 @@ test("URL-only deployments accept anonymous uploads without environment configur
   expect(result.slots[0]?.observation?.submission?.submittedByCharacter).toBeNull();
 });
 
-test("live evidence and coordinates sync without fake kills, unchanged polls stay quiet and scheduled expiry clears them", async () => {
-  const { t, args } = await setup(); await t.mutation(api.timers.sync, args);
-  const live = { ...slot, observationId: "alive", source: "alive" as const, timePrecision: "millisecond" as const, gatheredAt: now, observedByCharacter: "Observer", position: { x: 10, y: 5, z: -20 } };
-  const first = await t.mutation(api.timers.sync, { ...args, observations: [live] });
-  expect(first.slots[0]?.observation).toMatchObject({ ...live, submission: { submittedByCharacter: "Sender" } });
-  expect(first.slots[0]?.observation).not.toHaveProperty("diedAt");
-  const stored = await t.run(ctx => ctx.db.query("bossTimers").first()); expect(stored?.expiresAt).toBe(now + 5 * MINUTE);
-  const again = await t.mutation(api.timers.sync, { ...args, sinceRevision: first.dataset.revision, observations: [live] });
-  expect(again.slots).toEqual([]); expect(again.dataset.revision).toBe(first.dataset.revision);
-  await expect(t.query(api.timers.testConnection, { protocol: 2 })).rejects.toThrow();
-  await expect(t.mutation(api.timers.sync, { ...args, observations: [{ ...live, diedAt: now }] })).rejects.toThrow();
-  await vi.advanceTimersByTimeAsync(5 * MINUTE); await t.finishInProgressScheduledFunctions();
-  expect((await t.run(ctx => ctx.db.query("bossTimers").first()))?.observation).toBeUndefined();
-});
-
-test("reset cutoff rejects old sightings and accepts later sightings without a database wipe on upgrade", async () => {
+test("schema upgrade discards only retired evidence, preserves kills and prevents its return", async () => {
   const { t, args, d } = await setup();
-  const reset = await t.mutation(api.timers.reset, { ...access, datasetId: d.datasetId, generation: d.generation, requestId: "reset-live" });
-  const live = { ...slot, observationId: "before-reset", source: "alive" as const, timePrecision: "millisecond" as const, gatheredAt: now - 1 };
-  expect((await t.mutation(api.timers.sync, { ...args, generation: reset.generation, observations: [live] })).slots).toEqual([]);
-  vi.setSystemTime(now + 1000);
-  const accepted = await t.mutation(api.timers.sync, { ...args, generation: reset.generation, observations: [{ ...live, observationId: "after-reset", gatheredAt: now + 1000 }] });
-  expect(accepted.slots[0]?.observation?.source).toBe("alive");
+  const current = evidence("keep", { position: { x: 1, y: 2, z: 3 } });
+  await t.mutation(api.timers.sync, { ...args, observations: [current] });
+  const retired = { mobId: slot.mobId, region: slot.region, channel: 1, observationId: "retired", source: "alive" as const, timePrecision: "millisecond" as const, gatheredAt: now };
+  await t.run(async ctx => {
+    const m = (await ctx.db.query("trackerMeta").first())!; await ctx.db.patch(m._id, { schema: 1 });
+    await ctx.db.insert("bossTimers", { key: `${slot.mobId}|sa|1`, mobId: slot.mobId, region: slot.region, channel: 1, observation: retired, outdated: false, revision: m.revision, expiresAt: now + 5 * MINUTE });
+  });
+  const upgraded = await t.mutation(api.timers.ensureInitialized, access);
+  expect(upgraded.datasetId).toBe(d.datasetId); expect(upgraded.generation).toBe(d.generation);
+  const rows = await t.run(ctx => ctx.db.query("bossTimers").collect());
+  expect(rows.find(r => r.channel === 2)?.observation).toMatchObject(current);
+  expect(rows.find(r => r.channel === 1)?.observation).toBeUndefined();
+  expect((await t.run(ctx => ctx.db.query("trackerMeta").first()))?.schema).toBe(2);
+  expect(await t.mutation(api.timers.ensureInitialized, access)).toEqual(upgraded);
+  await expect(t.mutation(api.timers.sync, { ...args, observations: [retired as never] })).rejects.toThrow();
 });
 
 test("first-sync initialization checks protocol and never resets existing observations", async () => {

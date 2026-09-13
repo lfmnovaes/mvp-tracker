@@ -12,7 +12,7 @@ function selected(slots: readonly TimerSlot[], selection: Selection, now: number
 export function exportTimers(slots: readonly TimerSlot[], selection: Selection, now: number, format: ExportFormat): { text: string; count: number } {
   let observations = selected(slots, selection, now);
   if (format === "text") {
-    observations = observations.filter(o => o.source !== 'alive' && bossById(o.mobId)?.endgame);
+    observations = observations.filter(o => bossById(o.mobId)?.endgame);
     const sections: string[] = [];
     for (const region of REGIONS) {
       const lines: string[] = [];
