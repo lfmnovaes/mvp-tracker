@@ -8,6 +8,10 @@ Both TypeScript projects and **102 tests** (88 Bun +14 Convex) pass. Coverage in
 
 Windows build and archive verification pass: 15 runtime files, 96 source files, three x64 executables and no private state. Both tampered runtime/source archives are rejected. Synthetic 25-iteration benchmark: 42 slots median 0.45 ms/max 2.48 ms; 594 slots median 3.25 ms/max 5.18 ms.
 
+[Clean push CI](https://github.com/lfmnovaes/mvp-tracker/actions/runs/34750474668) and the [tagged build/release job](https://github.com/lfmnovaes/mvp-tracker/actions/runs/34750557275) passed at 29259b3, tag app-v0.1.9.2. GitHub initially returned HTTP 500 after creating an empty draft; only that empty draft was removed, and the failed release job succeeded on retry using the verified artifacts.
+
+The [draft release](https://github.com/lfmnovaes/mvp-tracker/releases/tag/untagged-7678a8bf210aefc5bc76) has four assets: runtime ZIP (41,249,186 bytes), source ZIP (214,369 bytes), manifest and checksums. CI runtime SHA-256: 1a6bf00a23fac5f26f11da2dc01d5255309b9768574cf1d7f4572ffcdce1acd4. The clean local runtime has SHA-256 616dc2e751ac8df29a66d6439ba76872a701318631589e558b4e063089868d0a. This evidence-only update follows the tag; verified assets remain unchanged and unpublished.
+
 0.1.9.1 was withdrawn: its GitHub release/assets, remote/local tag and local release archives/staging were removed. Implementation history is retained. No game/UI control or live Convex deployment/Reset was performed. Live capture and coordinate validation remain in [Step 10](testing.md).
 
 ## 0.1.9
