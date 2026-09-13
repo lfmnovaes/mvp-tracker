@@ -37,6 +37,17 @@ test("capture is process-scoped passive UDP and follows game exit without losing
   h.advance(120000); await settle(); expect(h.drivers).toHaveLength(1);
 });
 
+test("the first active process notification does not erase context decoded before process discovery", async () => {
+  const h = harness(); await h.service.restart(); const driver = h.drivers[0]!;
+  driver.emit("fishNetPacket", { connectionId: "game", packetName: "targetRpc", rpcName: "ChannelList_T", tick: 1, raw: Buffer.from("context"),
+    liteNetPacket: { packet: {}, udpPacket: { direction: "inbound", capturedAt: new Date(1_789_000_000_000) } },
+    decodedFields: [{ name: "currentIndex", value: 2 }, { name: "instanceId", value: "nova-map" }] });
+  expect(h.service.snapshot().channel).toBe(3);
+  driver.emit("targetStatus", { state: "active", processIds: [42] }); expect(h.service.snapshot().channel).toBe(3);
+  driver.emit("targetStatus", { state: "active", processIds: [43] }); expect(h.service.snapshot().channel).toBeUndefined();
+  await h.service.stop();
+});
+
 test("missing Npcap retries with backoff, recovers and never claims the game is absent", async () => {
   const h = harness(); const ready = h.runtime.probe;
   h.runtime.probe = async () => ({ availability: "missing", devices: [] });

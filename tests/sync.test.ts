@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { TimerStore } from "../src/backend/timer-store";
 import { SyncCoordinator, connectionId, type SyncClock, type SyncTransport } from "../src/backend/sync-coordinator";
 import { defaultSelection } from "../src/domain/catalog";
-import { emptySlot, mergeObservations, slotKey, type Observation, type TimerSlot } from "../src/domain/timers";
+import { observationExpiresAt, emptySlot, mergeObservations, slotKey, type Observation, type TimerSlot } from "../src/domain/timers";
 import { applySync, pendingUploads } from "../src/domain/sync";
 import type { Connection, Dataset, Discovery, SyncInput, SyncResult, PruneResult } from "../src/shared/sharing";
 const roots: string[] = [], engines: SyncCoordinator[] = [];
@@ -26,7 +26,7 @@ class Transport implements SyncTransport {
   hold?: Promise<void>; error?: Error; resets: string[] = []; lostReset = false; receipts = new Map<string, Dataset>();
   constructor(public clock: Clock) {}
   credentials = (): Connection => ({ ...this.config }); close() {}
-  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 2, schema: 1, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
+  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 3, schema: 1, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
   async sync(input: SyncInput): Promise<SyncResult> {
     this.calls.push(structuredClone(input)); await this.hold;
     if (this.error) throw this.error;
@@ -50,7 +50,7 @@ class Transport implements SyncTransport {
     this.prunes++; await this.hold; if (this.error) throw this.error;
     if (expected.generation !== this.dataset.generation) throw new Error("Sharing: dataset changed.");
     const before = this.rows.length;
-    this.rows = this.rows.filter(r => r.observation ? r.observation.diedAt + 9000000 > this.clock.now() : !r.outdated);
+    this.rows = this.rows.filter(r => r.observation ? observationExpiresAt(r.observation) > this.clock.now() : !r.outdated);
     if (before !== this.rows.length) this.dataset.revision++;
     return { dataset: { ...this.dataset }, serverTime: this.clock.now(), full: true, pruneOutdated: true, slots: this.rows.map(r => ({ ...r, revision: this.dataset.revision })), acknowledged: [], removed: before - this.rows.length };
   }

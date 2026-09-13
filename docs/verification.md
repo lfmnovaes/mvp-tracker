@@ -1,5 +1,15 @@
 # Verification
 
+## 0.1.9.1
+
+Both TypeScript projects and 106 tests (92 Bun +14 Convex) pass. New regressions cover map/auth/transport admission, initial process discovery, 30-second context joins, replay aging, malformed experimental data, bounded position/health joins, Alive expiry/merge/reset/acknowledgement, schema-1 migration and full-format round trips. No live capture success is inferred from synthetic fixtures.
+
+Windows build, runtime/source archive verification and both tamper-rejection checks pass. The runtime still contains 15 files and three x64 executables; private state is excluded. Synthetic 25-iteration merge/search/compressed-export benchmark: 42 slots median 0.57 ms/max 2.78 ms; 594 slots median 3.97 ms/max 7.11 ms.
+
+Upstream comparison and sanitized log findings are in [improvements](improvements.md). No game/UI control, live Convex deployment, Reset or log clearing was performed for this patch. The owner must deploy protocol 3; existing rows need no Reset. Live coordinate axes, positive-health coverage and intermittent misses remain in [Step 10](testing.md).
+
+Release CI and draft evidence will be recorded after the tagged build.
+
 ## 0.1.9
 
 Both TypeScript projects and **88 tests** (76 Bun +12 Convex) pass. Added coverage for 5-second scheduling/coalescing, old 5-minute preference migration, safe capture/error context and runtime/source file exclusions. No Convex schema/functions changed.

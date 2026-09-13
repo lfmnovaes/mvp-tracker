@@ -11,6 +11,7 @@ export function healthSample(snapshot: Snapshot, at: number) {
   return { at, capture: c.state, game: c.game, adapterSelected: !!c.adapter,
     adaptersAvailable: c.devices.length, lastPacketAt: c.lastPacketAt,
     retryAt: c.retryAt, skipped: c.skipped, unresolved: c.unresolved,
+    experiments: c.experiments ? { bossObjects: c.experiments.bossObjects, positions: c.experiments.positions, sightings: c.experiments.sightings } : undefined,
     backendConnected: true, trayReady: snapshot.trayReady, storageWritable: snapshot.storageWritable,
     timers: { total: snapshot.timers.length, outdated },
     sharing: snapshot.sharing ? { configured: snapshot.sharing.configured, state: snapshot.sharing.state } : undefined,

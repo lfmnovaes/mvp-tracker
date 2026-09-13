@@ -1,36 +1,36 @@
-# Candidate improvements
+# Capture experiments and next improvements
 
-These are proposals, not features shipped in 0.1.9.
+## Implemented experimentally — 0.1.9.1
 
-| Priority | Change | Benefit / validation |
-|---|---|---|
-| 1 | Capture reason surfaced beside Retry | Faster diagnosis without opening logs; use the new allowlisted warning reasons |
-| 2 | Gravestone coordinates in Details and JSON | Identify the observed location; validate coordinate axes and object association first |
-| 3 | Positive live-boss observations | Replace inferred spawn timing with observed presence when reliable packets identify a living boss |
-| 4 | Next-window summary and saved filter presets | Faster navigation for groups tracking many bosses; validate usefulness in Step 10 |
-| 5 | Shared access controls and adaptive idle sync | Reduce accidental resets and idle traffic as the group grows; preserve simple setup |
-| Later | Other timezones, Portuguese, optional alerts, signing | Expand after Windows/private-group acceptance |
+**Proposal 2: coordinates.** Join object spawn/partial transforms to the same gravestone object within the current connection/map/channel. Store world x/y/z; display ground X/Y = world X/Z and elevation in Details. Missing, invalid or nested positions show Not located. There is no player-position fallback or calibrated game-map origin/scale.
 
-## Gravestone position
+**Proposal 3: Alive.** Require an exact catalog boss ID/level, explicit server ownership and positive health no greater than max health. Accept health/identity joins within two seconds; emit at most once per five seconds per object. Transform traffic alone does not refresh a sighting. Alive lasts one minute, then Last seen alive until five minutes, then evidence is discarded. No kill time is invented. A newer grave/manual kill replaces a sighting.
 
-The pinned capture 3.0.2 packet contract exposes objectId, spawnLocalPosition and networkTransform position. The grave helper returns mob ID/name, killer and kill time only; MVP Tracker currently discards position.
+Both experiments default on and have separate Capture switches. Disabling affects new local collection, not existing/imported observations. Object joins are capped at 2,048, age out after five idle minutes, and reset on authentication/map/channel changes or object reuse. Bad experimental data cannot suppress valid graves. Anonymous counters help distinguish missing entity/position/health evidence without logging payloads.
 
-A feasible implementation joins a grave with its object's spawn/transform position within the same connection, retains that position for later SyncType grave updates, and resets the object map on connection changes. Do not substitute the player's position.
+Validate both in [Step 10](testing.md): known landmarks, fresh/revisited graves, map/channel changes, dead/owned/unknown entities and cross-client expiry. Packet-contract tests demonstrate implementation behavior, not confirmed live-game coverage.
 
-World position is not automatically the map's displayed X/Y. Validate whether the ground plane uses X/Z, map origin/scale, nested object transforms and absent/partial position fields. Store world coordinates plus map/instance/observed time first; display map coordinates only after mapping is established. Unknown position stays empty. Version the shared/export model and retain backwards compatibility.
+## Capture investigation
 
-Acceptance: two graves at distinct known points, spawn and revisit updates, channel/map changes, reused object IDs, missing position, and matching screen-map landmarks.
+Compared upstream HEADs on 2026-09-13: overlay 4f1f8000 and tools 87db1d72. Capture 3.0.2 and character 0.6.1 remain current for these sources.
 
-## Seeing a live boss
+Confirmed app-side defects: TraverseActive cleared channel/region despite being a map notification; unrelated transport openings replaced the game connection; initial process discovery erased already-decoded context. These paths also exist in 0.1.8.2, so no specific 0.1.9 regression is established. Fixed context admission/reset rules, increased pending-grave tolerance from 10 to 30 seconds and expired transport replay identities after 15 seconds.
 
-Possible in principle: spawn/prefab data identifies entities, and upstream mappings include health/max-health sync fields. Current grave-only tracking does not reliably identify and track living bosses.
+Existing sanitized logs contained five pending-expired and three unknown-context warnings, consistent with those failures. They also contained 95 unattributed-traffic and six relay-duplicates warnings. App fixes cannot recover packets never attributed/captured by the upstream process-filtered driver. Retain process filtering; collect a bounded health sample if misses persist.
 
-Prototype a separate evidence type using validated boss identity plus explicit positive health/alive evidence. Associate it with connection/map/channel/object ID; distinguish summons, pets and corpses. Positive sightings can invalidate an earlier grave prediction. Leaving render range, despawn, a missing grave or packet silence must not count as death or respawn.
+## Remaining priorities
 
-Define merge/expiry rules for grave versus alive evidence before changing timers: later authoritative evidence wins, disappearance remains unknown, and a new kill starts a new cycle. Confirm packet fixtures and UI wording before deployment.
+| Priority | Improvement |
+|---|---|
+| 1 | Surface the current allowlisted capture warning reason beside Retry |
+| 2 | Validate ground axes against live landmarks; calibrate map coordinates only with evidence |
+| 3 | Validate live health/spawn coverage and tune sighting freshness from observed behavior |
+| 4 | Saved filter presets and next-window summary, subject to Step 10 UX findings |
+| 5 | Shared access controls and adaptive idle sync |
+| Later | Additional timezones, Portuguese, optional alerts and signing |
 
-## References
+## Source references
 
-- [Pinned Spirit Vale Tools source](https://github.com/kar-mi/spirit-vale-tools/tree/87db1d724d5738ec8b5f3cb258e357e757813264/packages/capture): packet/spawn/network-transform declarations, grave decoder and generated component mappings.
-- Installed declarations inspected: @kar-mi/spirit-vale-tools-capture/dist/fishnet/schema/packets.d.ts, decoding/spawn.d.ts, decoding/network-transform.d.ts and tracking/boss-gravestone.d.ts.
-- These API fields establish feasibility, not verified map coordinates or a working live-boss detector.
+- [Overlay capture coordinator](https://github.com/kar-mi/spirit-vale-overlay/blob/4f1f8000bbdb19f7234aa9e73ddb89106fe3d389/apps/launcher/src/desktop/capture-coordinator.ts): connection admission and channel/map handling.
+- [Capture package](https://github.com/kar-mi/spirit-vale-tools/tree/87db1d724d5738ec8b5f3cb258e357e757813264/packages/capture): grave/monster decoding, ownership, spawn/transform and health contracts.
+- [Overlay source](https://github.com/kar-mi/spirit-vale-overlay/tree/4f1f8000bbdb19f7234aa9e73ddb89106fe3d389): minimap world X/Z ground plane and transform joins.

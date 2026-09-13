@@ -25,4 +25,4 @@ A URL cannot deploy functions/schema. See [Convex project configuration](https:/
 
 Transient failures use bounded backoff, up to five minutes; incompatible versions pause automatic mode. At continuous 5s polling, one client makes approximately 518,400 scheduled calls per 30 days before retries; 1m makes 43,200. Measure deployment usage during [Step 10](testing.md); fixture sizes do not establish free-plan capacity.
 
-Sharing protocol 2/schema 1 remain unchanged in 0.1.9. Existing matching deployments need no redeployment for this release. [Data/field audit](data-model.md) · [Troubleshooting](troubleshooting.md).
+0.1.9.1 uses sharing protocol 3 with database metadata schema 1. The owner must run **npx convex dev --once** from matching source, and all sharing clients must upgrade. The optional position/Alive schema extension preserves existing rows; **do not Reset for this upgrade**. [Data/field audit](data-model.md) · [Troubleshooting](troubleshooting.md).

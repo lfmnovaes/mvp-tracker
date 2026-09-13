@@ -7,7 +7,7 @@ import { EXPIRE_AFTER, MINUTE } from "../src/domain/time";
 import { BOSSES, REGIONS } from "../src/domain/catalog";
 const modules = import.meta.glob(["./**/*.ts", "./**/*.js", "!./**/*.test.ts"]);
 const now = Date.UTC(2026, 8, 11, 18);
-const access = { protocol: 2 };
+const access = { protocol: 3 };
 const slot = { mobId: "NightmarePaladinBoss", region: "sa", channel: 2 };
 const evidence = (id = "evidence", patch = {}) => ({ ...slot, observationId: id, diedAt: now - 70 * MINUTE, gatheredAt: now - MINUTE, source: "manual" as const, timePrecision: "second" as const, killedBy: "Killer", observedByCharacter: "Observer", ...patch });
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); });
@@ -31,6 +31,31 @@ test("URL-only deployments accept anonymous uploads without environment configur
   const { t, args } = await setup();
   const result = await t.mutation(api.timers.sync, { ...args, sentByCharacter: null });
   expect(result.slots[0]?.observation?.submission?.submittedByCharacter).toBeNull();
+});
+
+test("live evidence and coordinates sync without fake kills, unchanged polls stay quiet and scheduled expiry clears them", async () => {
+  const { t, args } = await setup(); await t.mutation(api.timers.sync, args);
+  const live = { ...slot, observationId: "alive", source: "alive" as const, timePrecision: "millisecond" as const, gatheredAt: now, observedByCharacter: "Observer", position: { x: 10, y: 5, z: -20 } };
+  const first = await t.mutation(api.timers.sync, { ...args, observations: [live] });
+  expect(first.slots[0]?.observation).toMatchObject({ ...live, submission: { submittedByCharacter: "Sender" } });
+  expect(first.slots[0]?.observation).not.toHaveProperty("diedAt");
+  const stored = await t.run(ctx => ctx.db.query("bossTimers").first()); expect(stored?.expiresAt).toBe(now + 5 * MINUTE);
+  const again = await t.mutation(api.timers.sync, { ...args, sinceRevision: first.dataset.revision, observations: [live] });
+  expect(again.slots).toEqual([]); expect(again.dataset.revision).toBe(first.dataset.revision);
+  await expect(t.query(api.timers.testConnection, { protocol: 2 })).rejects.toThrow();
+  await expect(t.mutation(api.timers.sync, { ...args, observations: [{ ...live, diedAt: now }] })).rejects.toThrow();
+  await vi.advanceTimersByTimeAsync(5 * MINUTE); await t.finishInProgressScheduledFunctions();
+  expect((await t.run(ctx => ctx.db.query("bossTimers").first()))?.observation).toBeUndefined();
+});
+
+test("reset cutoff rejects old sightings and accepts later sightings without a database wipe on upgrade", async () => {
+  const { t, args, d } = await setup();
+  const reset = await t.mutation(api.timers.reset, { ...access, datasetId: d.datasetId, generation: d.generation, requestId: "reset-live" });
+  const live = { ...slot, observationId: "before-reset", source: "alive" as const, timePrecision: "millisecond" as const, gatheredAt: now - 1 };
+  expect((await t.mutation(api.timers.sync, { ...args, generation: reset.generation, observations: [live] })).slots).toEqual([]);
+  vi.setSystemTime(now + 1000);
+  const accepted = await t.mutation(api.timers.sync, { ...args, generation: reset.generation, observations: [{ ...live, observationId: "after-reset", gatheredAt: now + 1000 }] });
+  expect(accepted.slots[0]?.observation?.source).toBe("alive");
 });
 
 test("first-sync initialization checks protocol and never resets existing observations", async () => {

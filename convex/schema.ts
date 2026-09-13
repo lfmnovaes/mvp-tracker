@@ -1,8 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 export const observation = v.object({
-  mobId: v.string(), region: v.string(), channel: v.number(), observationId: v.string(), diedAt: v.number(), gatheredAt: v.number(),
-  source: v.union(v.literal("manual"), v.literal("gravestone")), timePrecision: v.union(v.literal("minute"), v.literal("second"), v.literal("millisecond")),
+  mobId: v.string(), region: v.string(), channel: v.number(), observationId: v.string(), diedAt: v.optional(v.number()), gatheredAt: v.number(),
+  source: v.union(v.literal("manual"), v.literal("gravestone"), v.literal("alive")), timePrecision: v.union(v.literal("minute"), v.literal("second"), v.literal("millisecond")),
+  position: v.optional(v.object({ x: v.number(), y: v.number(), z: v.number() })),
   killedBy: v.optional(v.string()), observedByCharacter: v.optional(v.string()), instanceId: v.optional(v.string()), replacesObservationId: v.optional(v.string()),
   submission: v.optional(v.object({ submittedByCharacter: v.union(v.string(), v.null()), serverAcceptedAt: v.number() })),
 });

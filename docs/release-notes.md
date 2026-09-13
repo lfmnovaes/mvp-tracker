@@ -1,13 +1,16 @@
 ## What's Changed
 
-- Added 5-second auto-sync and removed the 5-minute interval; existing 5-minute preferences migrate to 2 minutes.
-- Gave Hotkeys, Capture and Diagnostics their own Settings sections.
-- Added capture warning reasons and safe exception context to logs, while preserving privacy and throttling.
-- Reduced the portable download to runtime files, help and required license notices; matching source/documentation is a separate ZIP.
-- Extended release manifests, checksum verification and CI uploads to cover both archives.
-- Consolidated documentation and moved the plan to docs/plan.md, with one agent-led acceptance/UX test step.
-- Documented every database table/field and proposals for gravestone coordinates and live-boss detection.
+- Fixed capture context being lost on map notifications, unrelated transport openings and initial game-process discovery.
+- Extended early-observation buffering to 30 seconds and bounded replay suppression by age.
+- Added experimental X/Y ground coordinates, with Not located when reliable position is unavailable.
+- Added experimental Alive sightings from validated boss identity and positive health; sightings age to Last seen alive after one minute and expire after five.
+- Preserved position, observer and Alive evidence through local storage, JSON/compressed sharing and Convex.
+- Added independent Capture toggles, anonymous diagnostic counters and failure isolation for experimental decoding.
+- Narrowed Level, Region and CH columns; enlarged status text without increasing row height.
+- Added regression tests for capture transitions, evidence validation, compatibility, expiry and cloud sharing.
 
-Windows 11 x64, portable and unsigned. Extract the full windows-x64 ZIP; retain data/ when upgrading after Exit. WebView2/.NET are required, plus separately installed Npcap for capture. Source/build instructions are in the matching source ZIP. Existing protocol-2 Convex deployments need no redeployment.
+**Convex upgrade:** the owner must run **npx convex dev --once** from matching source; all sharing clients must upgrade to protocol 3. Existing database rows are preserved; Reset is not required. Local timers/full exports use schema 2 and read schema 1; back up data before downgrading.
 
-Draft pending Step 10 live capture, multiplayer, desktop and clean-machine acceptance.
+Windows 11 x64, portable and unsigned. Exit before upgrading; retain data/. Extract the full runtime ZIP. WebView2/.NET and separately installed Npcap are prerequisites. The source ZIP contains matching build instructions.
+
+Draft pending Step 10 game/desktop/multiplayer acceptance. Coordinates are world X/Z, not a calibrated map grid; Alive is an observation, not a continuous-presence guarantee.

@@ -1,6 +1,6 @@
 # MVP Tracker plan
 
-Version 0.1.9. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
+Version 0.1.9.1. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
 
 ## Scope
 
@@ -9,6 +9,7 @@ Version 0.1.9. Windows 11 x64, portable and unsigned. Steps 0–9 are implemente
 - Sort/search by boss, level, map, region, channel, status and gathered time. Spawned sorts before Spawn window. Rows highlight for two seconds on change; gathered age has ten color bands and an Outdated override.
 - Add/edit kill date and time; stamp gathered time on confirmation. Highest-level selected bosses first, alphabetical ties. Killer is visible and exportable. Default 24-hour display; optional AM/PM. Store UTC, display America/Sao_Paulo; timezone selector stays disabled.
 - A grave confirms no respawn at observation time. Spawn window: kill +60–90 minutes. Spawned: +90 minutes. Outdated: +150 minutes, discard evidence and retain the slot label until cleanup. Silence/despawn alone is not proof.
+- Experimental coordinates show ground world X/Z as X/Y; missing positions display Not located. Positive-health, server-owned catalog bosses produce Alive sightings: Alive for one minute, Last seen alive until five minutes, then discard. Capture settings can disable either experiment.
 - Newer gathered evidence wins regardless of manual/capture source. Imports and sync preserve evidence timestamps; polling never refreshes them. Validate identities, clock skew and bounded payloads.
 - Text export includes selected Dark Fortress kill times only, ordered by full time, with region/UTC-3 headers and b/g/n/pa/pr/s/w codes. JSON and MVPT1 gzip exports retain selected evidence/attribution; import validates, previews and merges.
 - URL-only Convex sharing, optional character attribution, transactional deltas, manual sync and 5s/10s/20s/30s/1m/2m automatic intervals. Default 1m, stopped on launch. One queue, at most one follow-up, live interval changes and bounded error backoff.
@@ -29,6 +30,7 @@ Version 0.1.9. Windows 11 x64, portable and unsigned. Steps 0–9 are implemente
 | 7 | Serialized sync, expiry, Reset and outdated cleanup |
 | 8 | Diagnostics, regression coverage, placement and timer presentation |
 | 9 | Windows CI, verified archives/checksums and draft releases |
+| 0.1.9.1 patch | Capture context/replay fixes, experimental coordinates and positive-health sightings, protocol 3 |
 | 0.1.9 follow-up | Lean runtime/source archives, documentation consolidation, settings sections, 5s interval and contextual logs |
 
 ## Step 10 — agent-led acceptance and UX testing
@@ -46,6 +48,6 @@ Record environment, actions, evidence and result for each check. Tests requiring
 
 ## Later work
 
-Prioritize coordinates and positive live-boss evidence after capture validation; see [improvements](improvements.md). Later: shared access controls, additional timezones, localization, optional alerts, signing and other platforms. Google/OAuth remains abandoned unless requirements change.
+Validate experimental coordinates and positive live-boss evidence during Step 10; see [improvements](improvements.md). Later: shared access controls, additional timezones, localization, optional alerts, signing and other platforms. Google/OAuth remains abandoned unless requirements change.
 
 After each completed implementation step: run relevant checks, update concise verification, commit with a short progress message and push. Keep existing user data and published artifacts intact.

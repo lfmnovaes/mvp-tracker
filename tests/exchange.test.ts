@@ -57,7 +57,7 @@ test("preview does not mutate, counts disabled/expired/conflicts, and confirmati
 test("invalid schemas, text, dates, channels, IDs, deep nesting and corrupt gzip reject before merging", () => {
   const json = exportTimers(slots([observation("a")]), all, now, "json").text;
   const value = JSON.parse(json);
-  for (const patch of [{ schemaVersion: 2 }, { observations: [observation("a", { channel: 4 as 1 })] }, { observations: [observation("a", { mobId: "Dragon Predator Robot" as Observation["mobId"] })] }, { observations: [observation("a", { gatheredAt: now + 60000 })] }, { observations: [observation("a"), observation("a", { killedBy: "other" })] }]) expect(() => decodeImport(JSON.stringify({ ...value, ...patch }), now)).toThrow();
+  for (const patch of [{ schemaVersion: 99 }, { observations: [observation("a", { channel: 4 as 1 })] }, { observations: [observation("a", { mobId: "Dragon Predator Robot" as Observation["mobId"] })] }, { observations: [observation("a", { gatheredAt: now + 60000 })] }, { observations: [observation("a"), observation("a", { killedBy: "other" })] }]) expect(() => decodeImport(JSON.stringify({ ...value, ...patch }), now)).toThrow();
   for (const input of ["SA UTC-3\nCh1: 12:00(pa)", "MVPT2:abc", "MVPT1:@!", '{"nested":' + "[".repeat(10) + "0" + "]".repeat(10) + "}", "x".repeat(EXCHANGE_LIMIT + 1)]) expect(() => decodeImport(input, now)).toThrow();
   const bytes = gzipSync(Buffer.from(json)); bytes[bytes.length - 8] ^= 1;
   expect(() => decodeImport("MVPT1:" + bytes.toString("base64url"), now)).toThrow("corrupt");

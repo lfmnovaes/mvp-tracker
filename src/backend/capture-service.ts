@@ -30,10 +30,14 @@ export class CaptureService {
     this.packets = new CapturePackets(emit, now, reason => {
       this.state.skipped = Math.min(999999, this.state.skipped + 1); this.report("capture-packet-rejected", { reason });
     });
+    this.packets.configure(settings);
   }
   snapshot(): CaptureSnapshot {
     const context = this.packets.snapshot();
     return { ...this.state, devices: this.state.devices.map(d => ({ ...d })),
+      detail: this.state.state === "running" && this.state.game === "active" && (!context.region || !context.channel)
+        ? `${this.state.detail} Waiting for server/channel context; change channel and revisit the gravestone.` : this.state.detail,
+      experiments: this.packets.experiments(),
       region: context.region, channel: context.channel, character: context.character, cachedCharacter: context.cachedCharacter, unresolved: context.unresolved,
       identity: context.character ? { name: context.character, source: "live" }
         : context.cachedCharacter ? { name: context.cachedCharacter, source: "cached" }
@@ -42,6 +46,7 @@ export class CaptureService {
   configure(settings: CaptureSettings) {
     const changed = this.settings.deviceName !== settings.deviceName;
     this.settings = settings;
+    this.packets.configure(settings);
     if (changed) void this.restart();
   }
   private report(event: CaptureLog, context: LogContext = {}) {
@@ -87,10 +92,11 @@ export class CaptureService {
         driver.on("targetStatus", (status: CaptureTargetStatus) => {
           if (!current()) return;
           const processKey = status.processIds.slice().sort((a, b) => a - b).join(",");
-          if (this.state.game !== status.state || this.processKey !== processKey) {
+          if (status.state === "waiting" || this.processKey && this.processKey !== processKey) {
             this.packets.reset(); this.state.lastPacketAt = undefined;
             this.activeSince = status.state === "active" ? this.now() : undefined;
           }
+          if (status.state === "active" && this.state.game !== "active") this.activeSince = this.now();
           this.state.game = status.state; this.processKey = processKey;
         });
         driver.on("connection", (event: CaptureConnectionEvent) => { if (current()) this.packets.connectionChanged(event.connectionId, event.state); });

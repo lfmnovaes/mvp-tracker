@@ -4,8 +4,7 @@ import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { observation } from "./schema";
 import { CATALOG_VERSION } from "../src/domain/catalog";
-import { compareEvidence, evidenceContent, MAX_SLOTS, parseObservation, parseSlot, slotKey } from "../src/domain/timers";
-import { EXPIRE_AFTER } from "../src/domain/time";
+import { observationStart, observationExpiresAt, compareEvidence, evidenceContent, MAX_SLOTS, parseObservation, parseSlot, slotKey } from "../src/domain/timers";
 import { SHARING_PROTOCOL, SHARING_SCHEMA, type Dataset, type Discovery, type SharedSlot, type SyncResult } from "../src/shared/sharing";
 
 function fail(code: string): never { throw new ConvexError({ code }); }
@@ -96,11 +95,11 @@ export const sync = mutation({ args: {
   }
   await expire(ctx, m, now);
   for (const o of incoming) {
-    if (o.diedAt + EXPIRE_AFTER <= now || o.diedAt <= m.resetAt) continue;
+    if (observationExpiresAt(o) <= now || observationStart(o) <= m.resetAt) continue;
     const key = slotKey(o), old = await ctx.db.query("bossTimers").withIndex("by_slot", q => q.eq("key", key)).unique();
     if (old?.observation && compareEvidence(o, old.observation as typeof o) <= 0) continue;
     m.revision = before + 1;
-    const fields = { key, ...parseSlot(o), observation: { ...o, submission: { submittedByCharacter: sender || null, serverAcceptedAt: now } }, outdated: false, revision: m.revision, expiresAt: o.diedAt + EXPIRE_AFTER };
+    const fields = { key, ...parseSlot(o), observation: { ...o, submission: { submittedByCharacter: sender || null, serverAcceptedAt: now } }, outdated: false, revision: m.revision, expiresAt: observationExpiresAt(o) };
     if (old) await ctx.db.patch(old._id, fields); else await ctx.db.insert("bossTimers", fields);
   }
   if (m.revision !== before || m.nextExpiry !== undefined && !m.cleanupJob) await expiryMetadata(ctx, m);
@@ -110,7 +109,7 @@ export const pruneOutdated = mutation({ args: { protocol: v.number(), datasetId:
   checkProtocol(args.protocol); const m = await bound(ctx, args.datasetId, args.generation), now = Date.now();
   const rows = await ctx.db.query("bossTimers").take(MAX_SLOTS + 1); if (rows.length > MAX_SLOTS) fail("CAPACITY");
   // Recheck actual evidence in this transaction; never trust a stale client list or outdated flag on a live observation.
-  const expired = rows.filter(row => row.observation ? row.observation.diedAt + EXPIRE_AFTER <= now : row.outdated);
+  const expired = rows.filter(row => row.observation ? observationExpiresAt(row.observation) <= now : row.outdated);
   for (const row of expired) await ctx.db.delete(row._id);
   if (expired.length) {
     m.revision++; m.prunedRevision = m.revision;

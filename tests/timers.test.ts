@@ -61,12 +61,12 @@ test("São Paulo input handles noon, midnight, seconds and calendar rollover ind
 
 test("+60/+90/+150 boundaries are absolute and expiry discards all observation data", () => {
   const o = observation("boundary"); const tracked = { ...emptySlot(o), observation: o };
-  for (const [age, status] of [[60 * MINUTE - 1, "waiting"], [60 * MINUTE, "window"], [90 * MINUTE - 1, "window"], [90 * MINUTE, "spawned"], [150 * MINUTE - 1, "spawned"], [150 * MINUTE, "outdated"]] as const) expect(timerStatus(tracked, o.diedAt + age)).toBe(status);
-  expect(expireSlots([tracked], o.diedAt + EXPIRE_AFTER)).toEqual([{ ...slot, outdated: true }]);
+  for (const [age, status] of [[60 * MINUTE - 1, "waiting"], [60 * MINUTE, "window"], [90 * MINUTE - 1, "window"], [90 * MINUTE, "spawned"], [150 * MINUTE - 1, "spawned"], [150 * MINUTE, "outdated"]] as const) expect(timerStatus(tracked, o.diedAt! + age)).toBe(status);
+  expect(expireSlots([tracked], o.diedAt! + EXPIRE_AFTER)).toEqual([{ ...slot, outdated: true }]);
   const laterCheck = observation("checked-again", { gatheredAt: now, source: "gravestone" });
   const merged = mergeObservations([tracked], [laterCheck], now);
   expect(merged[0].observation?.diedAt).toBe(o.diedAt);
-  expect(expireSlots(merged, o.diedAt + EXPIRE_AFTER)[0].observation).toBeUndefined();
+  expect(expireSlots(merged, o.diedAt! + EXPIRE_AFTER)[0].observation).toBeUndefined();
 });
 
 test("ordinary merges converge, use gathered time, keep coherent killers and ignore duplicate delivery", () => {

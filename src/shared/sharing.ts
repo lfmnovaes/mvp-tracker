@@ -1,5 +1,5 @@
 import type { Observation, TimerSlot } from "../domain/timers";
-export const SHARING_PROTOCOL = 2;
+export const SHARING_PROTOCOL = 3;
 export const SHARING_SCHEMA = 1;
 export interface Connection { url: string }
 export interface Dataset { datasetId: string; generation: number; revision: number; resetAt: number }
