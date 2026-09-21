@@ -6,7 +6,9 @@ Both TypeScript projects and **103 tests** (89 Bun +14 Convex) pass with capture
 
 Windows build, runtime/source verification and both tamper checks pass: 15 runtime files, 97 source files, three x64 executables, no private state. Synthetic 25-iteration benchmark: 42 slots median 0.78 ms/max 3.52 ms; 594 slots median 5.17 ms/max 7.31 ms. Neutralino runtime/lib 6.9.0, neu 11.7.2 and Preact 10.29.8 were verified as current stable releases and retained.
 
-No live game capture or manual desktop control was performed. Release publication is explicitly requested for this compatibility patch; the broader Step 10 acceptance matrix remains pending. CI and release evidence follow after publishing.
+No live game capture or manual desktop control was performed. Publication was explicitly requested for this compatibility patch; the broader Step 10 acceptance matrix remains pending.
+
+[Clean CI](https://github.com/lfmnovaes/mvp-tracker/actions/runs/35667978543) and the [tagged release workflow](https://github.com/lfmnovaes/mvp-tracker/actions/runs/35668126607) passed at 4c8be26, tag app-v0.1.9.3. [0.1.9.3 is published](https://github.com/lfmnovaes/mvp-tracker/releases/tag/app-v0.1.9.3) with runtime ZIP (41,256,794 bytes), source ZIP (215,959 bytes), manifest and checksums. CI runtime SHA-256: 47b554e3f41cd730924086d039bbce598135382b6db8c7a9b4cf93e90710cee3. The clean local build has SHA-256 5e832858f3230acb38a6e2411975a3db9a6b25ac503b5171b27253b21c4304b1. This evidence-only update follows the tag; published assets are unchanged.
 
 ## 0.1.9.2
 
