@@ -1,6 +1,6 @@
 # MVP Tracker plan
 
-Version 0.1.9.2. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
+Version 0.1.9.3. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
 
 ## Scope
 
@@ -30,6 +30,7 @@ Version 0.1.9.2. Windows 11 x64, portable and unsigned. Steps 0–9 are implemen
 | 7 | Serialized sync, expiry, Reset and outdated cleanup |
 | 8 | Diagnostics, regression coverage, placement and timer presentation |
 | 9 | Windows CI, verified archives/checksums and draft releases |
+| 0.1.9.3 patch | September 21 capture protocol and compatible character catalog updates |
 | 0.1.9.2 patch | Capture context/replay fixes, coordinates, reset cutoff correction, configurable age colors and protocol 4 |
 | 0.1.9 follow-up | Lean runtime/source archives, documentation consolidation, settings sections, 5s interval and contextual logs |
 

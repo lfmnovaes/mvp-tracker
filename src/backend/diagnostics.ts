@@ -2,7 +2,7 @@ import type { Snapshot } from "../shared/protocol";
 import { release } from "node:os";
 import type { LogRecord } from "./logger";
 import { timerStatus } from "../domain/timers";
-export const TOOLS_VERSIONS = { capture: "3.0.2", character: "0.6.1" } as const;
+export const TOOLS_VERSIONS = { capture: "3.0.3", character: "0.6.1" } as const;
 // Deliberately construct exports field-by-field. Never copy native error strings,
 // adapter descriptions, names, settings, timers or paths into a diagnostic report.
 export function healthSample(snapshot: Snapshot, at: number) {

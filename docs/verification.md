@@ -1,5 +1,13 @@
 # Verification
 
+## 0.1.9.3
+
+Both TypeScript projects and **103 tests** (89 Bun +14 Convex) pass with capture 3.0.3, items 0.1.12 and skills 0.2.5. A new synthetic wire test exercises the September 21 ChannelList_T hash through the installed decoder and tracker, including correct SA/channel/kill/killer attribution. Upstream boss IDs, names and levels are unchanged; protocol 4/schema 2 remain unchanged, so upgrading from 0.1.9.2 needs no Convex deployment.
+
+Windows build, runtime/source verification and both tamper checks pass: 15 runtime files, 97 source files, three x64 executables, no private state. Synthetic 25-iteration benchmark: 42 slots median 0.78 ms/max 3.52 ms; 594 slots median 5.17 ms/max 7.31 ms. Neutralino runtime/lib 6.9.0, neu 11.7.2 and Preact 10.29.8 were verified as current stable releases and retained.
+
+No live game capture or manual desktop control was performed. Release publication is explicitly requested for this compatibility patch; the broader Step 10 acceptance matrix remains pending. CI and release evidence follow after publishing.
+
 ## 0.1.9.2
 
 The sync data-loss regression was reproduced before implementation: both the desktop sync test and the Convex test failed because fresh post-reset observations with pre-reset kill times were discarded. Both passed after changing the cutoff to gatheredAt. Desktop coverage exercises manual and automatic sync; pre-reset evidence remains rejected.

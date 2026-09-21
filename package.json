@@ -1,6 +1,6 @@
 {
   "name": "mvp-tracker",
-  "version": "0.1.9.2",
+  "version": "0.1.9.3",
   "private": true,
   "description": "Portable Windows boss tracker for Spirit Vale",
   "author": "Luis Fernando <lfmnovaes@gmail.com>",
@@ -20,7 +20,7 @@
     "benchmark": "bun scripts/benchmark.ts"
   },
   "dependencies": {
-    "@kar-mi/spirit-vale-tools-capture": "3.0.2",
+    "@kar-mi/spirit-vale-tools-capture": "3.0.3",
     "@kar-mi/spirit-vale-tools-character": "0.6.1",
     "@neutralinojs/lib": "6.9.0",
     "convex": "1.45.0",
