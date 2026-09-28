@@ -8,6 +8,8 @@ All 33 supported bosses have verified overworld locations from SpiritValers. The
 
 Windows build and archive verification pass: 15 runtime files, 97 source files, three x64 executables and no private state. Both runtime/source tamper checks pass. Synthetic 25-iteration benchmark: 42 slots median 0.50 ms/max 2.45 ms; 594 slots median 3.67 ms/max 4.84 ms. No game/UI control or live database mutation was performed; interactive acceptance remains in Step 10.
 
+[Clean CI](https://github.com/lfmnovaes/mvp-tracker/actions/runs/36370971659) and the [tagged release workflow](https://github.com/lfmnovaes/mvp-tracker/actions/runs/36371090093) passed at 9a0bb61, tag app-v0.1.9.4. [0.1.9.4 is published](https://github.com/lfmnovaes/mvp-tracker/releases/tag/app-v0.1.9.4) with runtime ZIP (41,257,395 bytes), source ZIP (218,878 bytes), manifest and checksums. CI runtime SHA-256: 22b7fe4eb08e6746dd50c5e0323c00797da3a00d33f9ae2f24f9a04b32a861e1. Clean local runtime SHA-256: a23d2d9047ef6d6ba0ca9104ea6fcda12bf9b653e1c4d34a5388735d6ae7128b. This evidence-only update follows the tag; published assets are unchanged.
+
 ## 0.1.9.3
 
 Both TypeScript projects and **103 tests** (89 Bun +14 Convex) pass with capture 3.0.3, items 0.1.12 and skills 0.2.5. A new synthetic wire test exercises the September 21 ChannelList_T hash through the installed decoder and tracker, including correct SA/channel/kill/killer attribution. Upstream boss IDs, names and levels are unchanged; protocol 4/schema 2 remain unchanged, so upgrading from 0.1.9.2 needs no Convex deployment.
