@@ -52,10 +52,10 @@ export function compareRows(a: TimerRow, b: TimerRow, sort: Sort): number {
   }
   return difference * (sort.direction === "asc" ? 1 : -1) || stable(a, b);
 }
-export interface Query { search?: string; region?: Region; channel?: Channel; sort?: Sort }
+export interface Query { location?: string; search?: string; region?: Region; channel?: Channel; sort?: Sort }
 export function queryTimers(slots: readonly TimerSlot[], selection: Selection, now: number, query: Query = {}): TimerRow[] {
   return slots.filter(slot => isSelected(slot, selection) && (!query.region || slot.region === query.region) && (!query.channel || slot.channel === query.channel))
     .map(slot => ({ slot, boss: bossById(slot.mobId)!, status: timerStatus(slot, now) }))
-    .filter(row => matchesSearch(row, query.search ?? ""))
+    .filter(row => (!query.location || row.boss.map === query.location) && matchesSearch(row, query.search ?? ""))
     .sort((a, b) => compareRows(a, b, query.sort ?? defaultSort()));
 }

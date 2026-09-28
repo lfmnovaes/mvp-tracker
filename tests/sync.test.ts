@@ -59,7 +59,7 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), "mvp-sync-test-")); roots.push(root);
   const clock = new Clock(), transport = new Transport(clock), store = new TimerStore(root, defaultSelection(), clock.now);
   let sender: string | undefined = "First character";
-  const engine = new SyncCoordinator(transport, store, defaultSelection, () => sender, undefined, undefined, 60, clock, () => 0); engines.push(engine);
+  const engine = new SyncCoordinator(transport, store, () => sender, undefined, undefined, 60, clock, () => 0); engines.push(engine);
   return { root, clock, transport, store, engine, sender: (name?: string) => { sender = name; } };
 }
 afterEach(() => {
@@ -70,7 +70,7 @@ test("sync persists observations and acknowledgement together; restart sends no 
   const { engine, store, transport, root, clock } = fixture(); store.ingest([o("local")]); engine.request(); await engine.settled();
   expect(transport.rows[0]?.observation?.observationId).toBe("local");
   const persisted = JSON.parse(readFileSync(store.file, "utf8")); expect(persisted.sync.known[slotKey(o("local"))]).toBe("local"); expect(persisted.slots[0].observation.observationId).toBe("local");
-  const restarted = new TimerStore(root, defaultSelection(), clock.now); expect(pendingUploads(restarted.snapshot(), restarted.syncState(), defaultSelection(), now)).toEqual([]);
+  const restarted = new TimerStore(root, defaultSelection(), clock.now); expect(pendingUploads(restarted.snapshot(), restarted.syncState(), now)).toEqual([]);
   engine.request(); await engine.settled(); expect(transport.calls.at(-1)?.observations).toEqual([]); expect(transport.calls.at(-1)?.sinceRevision).toBe(transport.dataset.revision);
   expect(readFileSync(store.file, "utf8")).toBe(JSON.stringify(persisted) + "\n");
 });
@@ -174,12 +174,13 @@ test("a failed durable reset checkpoint never sends the reset; another player's 
   transport.dataset = { ...transport.dataset, generation: 2, resetAt: now, revision: 1 };
   engine.request(); await engine.settled(); expect(engine.snapshot().resetPending).toBe(false); expect(engine.snapshot().running).toBe(false); expect(store.syncState()?.dataset.generation).toBe(2);
 });
-test("remote expired slots preserve newer local evidence and unselected slots are not ingested", () => {
+test("remote expired slots preserve newer local evidence and unselected slots are retained", () => {
   const local = o("new", { gatheredAt: now }), current = [{ ...emptySlot(local), observation: local }];
   const result: SyncResult = { dataset: { datasetId: "dataset", generation: 1, revision: 2, resetAt: 0 }, full: true, serverTime: now, acknowledged: [], slots: [{ ...emptySlot(local, true), revision: 1 }, { ...emptySlot({ ...local, region: "eu" }), observation: o("eu", { region: "eu" }), revision: 2 }] };
-  const next = applySync(current, undefined, result, [], connectionId(config), "selected", defaultSelection(), now);
-  expect(next.slots).toHaveLength(1); expect(next.slots[0]?.observation?.observationId).toBe("new");
-  expect(() => applySync(current, undefined, { ...result, full: false }, [], connectionId(config), "selected", defaultSelection(), now)).toThrow();
+  const next = applySync(current, undefined, result, [], connectionId(config), "selected", now);
+  expect(next.slots).toHaveLength(2); expect(next.slots.find(s => s.region === "sa")?.observation?.observationId).toBe("new");
+  expect(next.slots.find(s => s.region === "eu")?.observation?.observationId).toBe("eu");
+  expect(() => applySync(current, undefined, { ...result, full: false }, [], connectionId(config), "selected", now)).toThrow();
 });
 
 test("delete outdated works locally without a connection and persists while preserving live records", async () => {
@@ -200,13 +201,13 @@ test("cleanup waits for sync and preserves fresh capture arriving while the data
   const cleaning = clock.advance(0, engine); await Promise.resolve();
   expect(transport.prunes).toBe(1); store.ingest([o("fresh", { gatheredAt: now })]); release(); await cleaning;
   expect(store.snapshot()[0]?.observation?.observationId).toBe("fresh"); expect(transport.rows).toHaveLength(0);
-  expect(pendingUploads(store.snapshot(), store.syncState(), defaultSelection(), now)).toHaveLength(1);
+  expect(pendingUploads(store.snapshot(), store.syncState(), now)).toHaveLength(1);
 });
 
 test("a shared prune removes obsolete local labels and never clears current local observations", () => {
   const active = o("active", { channel: 2 });
   const result: SyncResult = { dataset: { datasetId: "dataset", generation: 1, revision: 3, resetAt: 0 }, full: true, pruneOutdated: true, serverTime: now, slots: [], acknowledged: [] };
-  const applied = applySync([emptySlot(o("old"), true), { ...emptySlot(active), observation: active }], undefined, result, [], connectionId(config), "selected", defaultSelection(), now);
+  const applied = applySync([emptySlot(o("old"), true), { ...emptySlot(active), observation: active }], undefined, result, [], connectionId(config), "selected", now);
   expect(applied.slots).toHaveLength(1); expect(applied.slots[0]?.observation?.observationId).toBe("active");
 });
 
@@ -218,4 +219,29 @@ test("cleanup on a new connection does not upload local records or restore remot
   expect(engine.snapshot().message).toContain("database cleanup failed");
   transport.error = undefined; engine.requestPrune(); await engine.settled();
   expect(transport.rows).toEqual([]); expect(transport.calls).toHaveLength(0);
+});
+
+test("sync upgrades a filtered cursor and shares hidden bosses without duplicate writes", async () => {
+  const { engine, store, transport, root, clock } = fixture();
+  const hidden = o("hidden-remote", { mobId: "Bat Lord", region: "eu", killedBy: "Killer", observedByCharacter: "Observer" });
+  transport.dataset.revision = 5;
+  transport.rows = [{ ...emptySlot(hidden), observation: hidden }];
+  // Older clients recorded remote IDs even when the matching records were filtered out.
+  store.checkpoint({ connectionId: connectionId(config), selection: JSON.stringify({ bossIds: [...defaultSelection().bossIds].sort(), regions: [...defaultSelection().regions].sort() }), dataset: { ...transport.dataset }, known: { [slotKey(hidden)]: hidden.observationId } });
+  engine.request(); await engine.settled();
+  expect(transport.calls[0]?.sinceRevision).toBeNull();
+  expect(store.snapshot()[0]?.observation).toEqual(hidden);
+  expect(store.selectedSnapshot()).toEqual([]);
+  store.setSelection({ bossIds: [], regions: [] });
+  const captured = o("hidden-capture", { mobId: "Sting", region: "jp", source: "gravestone" });
+  expect(store.ingest([captured])).toBe(true);
+  engine.request(); await engine.settled();
+  expect(transport.calls.at(-1)?.observations).toEqual([captured]);
+  const revision = transport.dataset.revision;
+  engine.request(); await engine.settled();
+  expect(transport.calls.at(-1)?.observations).toEqual([]);
+  expect(transport.calls.at(-1)?.sinceRevision).toBe(revision);
+  expect(transport.dataset.revision).toBe(revision);
+  const other = new TimerStore(root, { bossIds: ["Bat Lord", "Sting"], regions: ["eu", "jp"] }, clock.now);
+  expect(other.selectedSnapshot().map(s => s.observation?.observationId).sort()).toEqual(["hidden-capture", "hidden-remote"]);
 });

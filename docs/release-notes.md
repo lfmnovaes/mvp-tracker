@@ -1,6 +1,7 @@
 ## What's Changed
 
-- Updated Spirit Vale capture to 3.0.3 for the September 21 game protocol, matching Spirit Vale Overlay.
-- Updated compatible character catalogs: items 0.1.12 and skills 0.2.5.
-- Added a wire-packet regression test for current channel decoding and gravestone ingestion.
-- Updated the capture version shown in Diagnostics.
+- Added verified locations for all 33 supported bosses and a location filter.
+- Capture, storage and Convex sync now retain all supported bosses and regions; Settings controls visibility.
+- Refresh older sync caches once to recover previously hidden records; subsequent syncs keep delta downloads.
+- Updated Convex, Bun/Node typings, Vitest and convex-test to current compatible versions.
+- Added regression coverage for hidden records, restart recovery, sync upgrades and combined filters.

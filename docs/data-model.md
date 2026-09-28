@@ -30,7 +30,7 @@ All three custom tables and their fields are used. Optional position extends kil
 | datasetId, expectedGeneration | Bind receipt to the original reset target |
 | generation, resetAt, revision | Return the original reset result without clearing newer data |
 
-resetReceipts is bounded to the latest 32 entries, indexed by reset time. Removing it would permit a retry to clear fresh observations. Older evicted retries fail the generation check. Convex's _scheduled_functions is platform-managed scheduler state. Every document also has automatic _id (used for patch/delete) and _creationTime fields; these cannot be removed from the schema. The catalog bounds bossTimers to 594 slots (42 with default selection).
+resetReceipts is bounded to the latest 32 entries, indexed by reset time. Removing it would permit a retry to clear fresh observations. Older evicted retries fail the generation check. Convex's _scheduled_functions is platform-managed scheduler state. Every document also has automatic _id (used for patch/delete) and _creationTime fields; these cannot be removed from the schema. The catalog bounds bossTimers to 594 retained/shared slots (42 visible with default selection).
 
 ## Observation fields
 
@@ -61,4 +61,4 @@ Local timers/full JSON use schema 2 and read schema 1. The MVPT1 envelope is unc
 
 ## Sync
 
-One mutation merges pending selected evidence against current server rows and returns revision deltas. Omitted/unselected slots are preserved. Client evidence, acknowledgements and cursor persist together. A new connection/generation forces discovery; late replies from an old connection are ignored. Reset IDs persist before sending, and retries reuse them. Server scheduler clears expired evidence even with no open client.
+All supported bosses/regions are captured and retained regardless of display preferences. Manual entry and clipboard sharing retain their selected-only scope. One mutation merges all pending evidence against current server rows and returns revision deltas. Omitted slots are preserved. The legacy cache selection field now holds all-supported-v1, forcing one full refresh on upgrade; display preference changes no longer invalidate the cursor. Client evidence, acknowledgements and cursor persist together. A new connection/generation forces discovery; late replies from an old connection are ignored. Reset IDs persist before sending, and retries reuse them. Server scheduler clears expired evidence even with no open client.

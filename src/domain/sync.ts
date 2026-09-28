@@ -1,6 +1,7 @@
-import { isSelected, type Selection } from "./catalog";
 import { observationExpiresAt, emptySlot, expireSlots, MAX_SLOTS, mergeObservations, parseObservation, parseSlot, slotKey, type Observation, type TimerSlot } from "./timers";
 import type { Dataset, SyncResult } from "../shared/sharing";
+// The persisted legacy selection field now stores scope. A different value forces one full download on upgrade.
+export const SYNC_SCOPE = "all-supported-v1";
 export interface SyncCache { connectionId: string; selection: string; dataset: Dataset; known: Record<string, string>; resetRequest?: { id: string; dataset: Dataset } }
 export function parseDataset(raw: Dataset): Dataset {
   if (!raw || typeof raw.datasetId !== "string" || !raw.datasetId || raw.datasetId.length > 160 || ![raw.generation, raw.revision, raw.resetAt].every(n => Number.isSafeInteger(n) && n >= 0) || raw.generation < 1) throw new Error("Sharing: invalid dataset metadata.");
@@ -28,25 +29,25 @@ export function validateSyncResult(raw: SyncResult, now: number): SyncResult {
   for (const id of raw.acknowledged) if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error("Sharing: invalid acknowledgements.");
   return { dataset, serverTime: raw.serverTime, full: raw.full, slots, acknowledged: [...raw.acknowledged], ...(raw.pruneOutdated ? { pruneOutdated: true } : {}) };
 }
-export function pendingUploads(slots: TimerSlot[], cache: SyncCache | undefined, selection: Selection, now: number): Observation[] {
-  return slots.flatMap(s => s.observation && isSelected(s, selection) && observationExpiresAt(s.observation) > now && s.observation.gatheredAt > (cache?.dataset.resetAt ?? 0) && cache?.known[slotKey(s)] !== s.observation.observationId ? [s.observation] : []);
+export function pendingUploads(slots: TimerSlot[], cache: SyncCache | undefined, now: number): Observation[] {
+  return slots.flatMap(s => s.observation && observationExpiresAt(s.observation) > now && s.observation.gatheredAt > (cache?.dataset.resetAt ?? 0) && cache?.known[slotKey(s)] !== s.observation.observationId ? [s.observation] : []);
 }
-export function applySync(current: TimerSlot[], previous: SyncCache | undefined, raw: SyncResult, outgoing: Observation[], connectionId: string, selectionKey: string, selection: Selection, now: number): { slots: TimerSlot[]; cache: SyncCache } {
+export function applySync(current: TimerSlot[], previous: SyncCache | undefined, raw: SyncResult, outgoing: Observation[], connectionId: string, selectionKey: string, now: number): { slots: TimerSlot[]; cache: SyncCache } {
   const result = validateSyncResult(raw, now), dataset = result.dataset;
   const same = previous?.connectionId === connectionId && previous.dataset.datasetId === dataset.datasetId && previous.dataset.generation === dataset.generation;
   if (!result.full && (!same || dataset.revision < previous!.dataset.revision)) throw new Error("Sharing: a full snapshot is required.");
   const known: Record<string, string> = same ? { ...previous.known } : {};
   const ack = new Set(result.acknowledged);
   for (const o of outgoing) if (ack.has(o.observationId)) known[slotKey(o)] = o.observationId;
-  const observations = result.slots.flatMap(s => s.observation && isSelected(s, selection) ? [s.observation] : []);
+  const observations = result.slots.flatMap(s => s.observation ? [s.observation] : []);
   for (const row of result.slots) { if (row.observation) known[slotKey(row)] = row.observation.observationId; else delete known[slotKey(row)]; }
   // Reset invalidates old evidence, not kills that are freshly observed afterward.
   const base = expireSlots(current, now).map(s => s.observation && s.observation.gatheredAt <= dataset.resetAt ? emptySlot(s, true) : s);
-  let slots = mergeObservations(base, observations, now, selection);
+  let slots = mergeObservations(base, observations, now);
   // The authenticated/origin-bound server is authoritative for submission metadata, never evidence time.
   const remote = new Map(observations.map(o => [o.observationId, o]));
   slots = slots.map(s => s.observation && remote.has(s.observation.observationId) ? { ...s, observation: { ...s.observation, submission: remote.get(s.observation.observationId)!.submission } } : s);
   const labels = new Map(slots.map(s => [slotKey(s), s]));
-  for (const row of result.slots) if (!row.observation && isSelected(row, selection) && !labels.has(slotKey(row))) labels.set(slotKey(row), emptySlot(row, row.outdated));
+  for (const row of result.slots) if (!row.observation && !labels.has(slotKey(row))) labels.set(slotKey(row), emptySlot(row, row.outdated));
   return { slots: [...labels.values()].filter(s => !result.pruneOutdated || s.observation || !s.outdated), cache: { connectionId, selection: selectionKey, dataset, known } };
 }

@@ -1,12 +1,12 @@
 # MVP Tracker plan
 
-Version 0.1.9.3. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
+Version 0.1.9.4. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
 
 ## Scope
 
 - One dark tracker window, capture/game/shell status, fixed filters and actions, tray menu, and remembered monitor/normal bounds. X hides; minimize uses the taskbar. F7 toggles, F8 adds, F9 syncs.
-- Track 33 supported bosses; exclude Robot Dragon. Default: seven Dark Fortress Echo masters (Berserker, Paladin, Wizard, Priest, Gunslinger, Necromancer, Shinobi), SA and NA, channels 1–3. Weaver and other bosses/servers are selectable. Known maps are filled; unknown maps stay empty.
-- Sort/search by boss, level, map, region, channel, status and gathered time. Spawned sorts before Spawn window. Rows highlight for three seconds only when Gathered at changes; ten fixed age colors use a configurable interval (default three minutes) and an Outdated override.
+- Track 33 supported bosses; exclude Robot Dragon. Default: seven Dark Fortress Echo masters (Berserker, Paladin, Wizard, Priest, Gunslinger, Necromancer, Shinobi), SA and NA, channels 1–3. Weaver and other bosses/servers are selectable. All 33 boss locations are verified from SpiritValers. Always collect/store/sync all supported bosses and servers; Settings controls visibility.
+- Filter by location, region and channel; sort/search by boss, level, map, region, channel, status and gathered time. Spawned sorts before Spawn window. Rows highlight for three seconds only when Gathered at changes; ten fixed age colors use a configurable interval (default three minutes) and an Outdated override.
 - Add/edit kill date and time; stamp gathered time on confirmation. Highest-level selected bosses first, alphabetical ties. Killer is visible and exportable. Default 24-hour display; optional AM/PM. Store UTC, display America/Sao_Paulo; timezone selector stays disabled.
 - A grave confirms no respawn at observation time. Spawn window: kill +60–90 minutes. Spawned: +90 minutes. Outdated: +150 minutes, discard evidence and retain the slot label until cleanup. Silence/despawn alone is not proof.
 - Experimental coordinates show ground world X/Z as X/Y; missing positions display Not located. Capture settings can disable coordinate collection. Living-boss detection is removed.
@@ -30,6 +30,7 @@ Version 0.1.9.3. Windows 11 x64, portable and unsigned. Steps 0–9 are implemen
 | 7 | Serialized sync, expiry, Reset and outdated cleanup |
 | 8 | Diagnostics, regression coverage, placement and timer presentation |
 | 9 | Windows CI, verified archives/checksums and draft releases |
+| 0.1.9.4 patch | Complete boss locations, map filter, collection independent of visibility and compatible dependency updates |
 | 0.1.9.3 patch | September 21 capture protocol and compatible character catalog updates |
 | 0.1.9.2 patch | Capture context/replay fixes, coordinates, reset cutoff correction, configurable age colors and protocol 4 |
 | 0.1.9 follow-up | Lean runtime/source archives, documentation consolidation, settings sections, 5s interval and contextual logs |

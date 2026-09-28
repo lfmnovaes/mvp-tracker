@@ -19,7 +19,7 @@ A URL cannot deploy functions/schema. See [Convex project configuration](https:/
 - **Save settings:** persist URL locally, then check/initialize metadata in the background. Empty URL disconnects. Changing URL stops automatic sync and cancels old requests.
 - **Test connection:** read-only URL/protocol/schema/catalog/clock check. Save URL edits first.
 - **Reset database:** confirmation, drain active sync, clear shared tracker evidence, advance generation, preserve retry protection. Does not deploy code or delete unrelated tables.
-- **Sync / F9:** merge selected current evidence while preserving other rows.
+- **Sync / F9:** merge all supported current evidence, including hidden bosses and regions while preserving other rows.
 - **Start / Stop:** automatic intervals 5s, 10s, 20s, 30s, 1m, 2m; default 1m and stopped on launch. Manual clicks coalesce; interval changes apply live. Stop prevents future work, but an in-flight reply may finish.
 - **Delete outdated:** remove expired placeholders locally and remotely; current evidence survives. Local cleanup works without a URL.
 

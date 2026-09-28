@@ -19,3 +19,5 @@ Build-only dependencies include @neutralinojs/neu (MIT), TypeScript (Apache-2.0)
 Step 6 bundles the Convex 1.45.0 JavaScript HTTP client (Apache-2.0); its license is included in the portable licenses directory. The Convex API/server bootstrap output is generated from that package's templates. Test-only packages are convex-test 0.0.57, Vitest 5.0.0 and @edge-runtime/vm 5.0.0, with exact transitive versions in bun.lock; they do not run in the portable application.
 
 The synthetic wire encoders in tests/capture-protocol.test.ts follow packages/capture/src/fishnet/mapping/bundled-rpc-map.test.ts at tools revision 6e075bea7e81270b5fca81a49e1e2f5bc6fde10b (AGPL-3.0-only). Test values are fabricated; no game traffic is included.
+
+Boss location labels were verified against the SpiritValers community wiki monster/spawn datasets (https://spiritvalers.com/, 2026-09-27). Game names/data belong to the Spirit Vale developers. No wiki code or artwork is bundled.

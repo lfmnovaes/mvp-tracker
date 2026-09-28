@@ -42,3 +42,9 @@ Result: pass / fail / blocked
 ```
 
 Healthy snapshots normally have writable storage, ready tray, no pending reset and progressing sync.lastAt when running. Waiting/stopped are normal. Unchanged polling leaves revision stable and intentionally emits no success log. Logs support diagnosis; visual/game correctness still requires observation.
+
+## 0.1.9.4 acceptance additions
+
+- With only Endgame visible, encounter a non-Endgame grave, sync, then enable that boss: its original gathered time and location should appear. Repeat across clients with different visible selections.
+- Combine location, region, channel and search; deselect the active location’s last boss and save: the location filter returns to All locations. Verify toolbar fit at the supported window sizes.
+- Upgrade an existing 0.1.9.3 data folder: first sync retrieves hidden records; unchanged later syncs do not advance revision.

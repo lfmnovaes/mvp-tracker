@@ -1,6 +1,6 @@
 # MVP Tracker
 
-Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.9.3**. Local tracking works without Convex.
+Portable, unsigned Windows 11 x64 boss tracker for Spirit Vale. Version **0.1.9.4**. Local tracking works without Convex.
 
 ## First run
 
@@ -18,11 +18,13 @@ For upgrades, Exit first, replace the application files, and keep your `data/` f
 
 Experimental X/Y shows ground world X/Z, not a calibrated game-map grid; missing coordinates show **Not located**. Coordinate capture can be disabled in Settings → Capture.
 
+All supported bosses and regions are collected and synced, including hidden ones. Settings → Tracking controls visibility, map filter choices and manual/clipboard selections. Use **All locations** or a specific map alongside region, channel and search.
+
 Status sorting puts Spawned before Spawn window and Waiting. Rows highlight for three seconds only when Gathered at changes. Settings → Colors controls the interval between ten fixed freshness colors; default three minutes. Outdated uses muted red and discards its old timestamp.
 
 ## Run from source
 
-Install Bun **1.4.2** and Node.js. First time, from this repository:
+Install Bun **1.4.2** and Node.js **24 LTS**. First time, from this repository:
 
 ```powershell
 bun install --frozen-lockfile
@@ -40,7 +42,7 @@ First setup (choose your existing project and cloud development deployment):
 npx convex dev --configure --dev-deployment cloud --once
 ```
 
-After backend updates—or to retry a failed type-check—run **`npx convex dev --once`**. Ordinary app launches need neither command. Deploy the matching backend before running this URL-only build (sharing protocol 4). When upgrading from before 0.1.9.2, redeploy once and upgrade every sharing client; no Reset is required. Retired experimental sightings are cleared automatically; valid kill timers are preserved. 0.1.9.3 needs no further Convex deployment after 0.1.9.2. Local data and full exports migrate to schema 2 (schema 1 imports still work); keep a data backup before downgrading.
+After backend updates—or to retry a failed type-check—run **`npx convex dev --once`**. Ordinary app launches need neither command. Deploy the matching backend before running this URL-only build (sharing protocol 4). When upgrading from before 0.1.9.2, redeploy once and upgrade every sharing client; no Reset is required. Retired experimental sightings are cleared automatically; valid kill timers are preserved. 0.1.9.3 and 0.1.9.4 need no further Convex deployment after 0.1.9.2. Local data and full exports migrate to schema 2 (schema 1 imports still work); keep a data backup before downgrading.
 
 Keep the CLI-generated `.env.local`: `CONVEX_DEPLOYMENT` selects the owner's deployment; `CONVEX_URL` is a convenient copy of its URL. The app reads its URL from Settings. `CONVEX_SITE_URL` is unused by this project. [`.env.local.sample`](.env.local.sample) is an optional empty reference; never copy it over an existing configuration. [Convex configuration](https://docs.convex.dev/production/project-configuration).
 

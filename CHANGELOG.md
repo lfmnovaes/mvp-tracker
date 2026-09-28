@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.9.4
+
+- Added verified locations for all 33 supported bosses and a location filter.
+- Capture, storage and Convex sync now retain all supported bosses and regions; Settings controls visibility.
+- Refresh older sync caches once to recover previously hidden records; subsequent syncs keep delta downloads.
+- Updated Convex, Bun/Node typings, Vitest and convex-test to current compatible versions.
+- Added regression coverage for hidden records, restart recovery, sync upgrades and combined filters.
+
 ## 0.1.9.3
 
 - Updated Spirit Vale capture to 3.0.3 for the September 21 game protocol, matching Spirit Vale Overlay.

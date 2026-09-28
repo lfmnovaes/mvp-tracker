@@ -47,7 +47,7 @@ export class TimerStore {
     if (this.dirty || this.writeBlocked) throw new Error("Sharing: sync state could not be saved. Check portable folder access.");
   }
   acceptSync(result: SyncResult, outgoing: Observation[], connectionId: string, selectionKey: string) {
-    const next = applySync(this.slots, this.sync, result, outgoing, connectionId, selectionKey, this.selection, this.now());
+    const next = applySync(this.slots, this.sync, result, outgoing, connectionId, selectionKey, this.now());
     const changed = JSON.stringify(this.slots) !== JSON.stringify(next.slots) || JSON.stringify(this.sync) !== JSON.stringify(next.cache);
     this.slots = next.slots; this.sync = next.cache; this.dirty ||= changed; this.flush();
     if (this.dirty || this.writeBlocked) throw new Error("Sharing: downloaded changes are in memory, but could not be saved. Check portable folder access.");
@@ -59,7 +59,7 @@ export class TimerStore {
   setSelection(selection: Selection) { this.selection = parseSelection(selection); this.expire(); }
   snapshot(): TimerSlot[] { this.expire(); return structuredClone(this.slots); }
   selectedSnapshot(): TimerSlot[] { return this.snapshot().filter(slot => isSelected(slot, this.selection)); }
-  ingest(observations: readonly unknown[]): boolean { return this.replace(mergeObservations(this.slots, observations, this.now(), this.selection)); }
+  ingest(observations: readonly unknown[]): boolean { return this.replace(mergeObservations(this.slots, observations, this.now())); }
   saveManual(entry: ManualEntry): boolean { return this.replace(applyManual(this.slots, entry, this.now(), this.selection)); }
   remove(slot: Slot): boolean {
     const key = slotKey(parseSlot(slot));

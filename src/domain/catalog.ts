@@ -1,41 +1,43 @@
 // Minimal catalog extracted from spirit-vale-tools, commit 87db1d724d5738ec8b5f3cb258e357e757813264.
 // packages/rewards/src/catalog/definitions/mobs.ts — kar-mi, AGPL-3.0-only.
-// Only boss IDs/names/levels are retained. Robot Dragon is deliberately excluded.
+// Boss locations: https://spiritvalers.com/wiki-data/spawns.json (2026-09-27).
+// Dark Fortress remains the timed overworld location, excluding Echoing Spire arena variants.
+// Robot Dragon is deliberately excluded.
 export const CATALOG_VERSION = 1;
 const rows = [
-  ["NightmareBerserkerBoss", "Echo Berserker Master", 155],
-  ["NightmareGunslingerBoss", "Echo Gunslinger Master", 155],
-  ["NightmareNecromancerBoss", "Echo Necromancer Master", 155],
-  ["NightmarePaladinBoss", "Echo Paladin Master", 155],
-  ["NightmarePriestBoss", "Echo Priest Master", 155],
-  ["NightmareShinobiBoss", "Echo Shinobi Master", 155],
-  ["NightmareWizardBoss", "Echo Wizard Master", 155],
-  ["NightmareWeaverBoss", "Echo Weaver Master", 150],
-  ["Mega Ice Golem", "Ice Titan", 140],
-  ["Turtle King", "Turtle Champion", 140],
-  ["Alien Big Blink", "Cosmic Entity", 135],
-  ["Spider Queen Robot", "Suphara", 135],
-  ["Death Mage", "Abyss Archon", 130],
-  ["Goblin Warchief", "Orc Warchief", 130],
-  ["Wraith", "Wraith King", 125],
-  ["Eyeball Monster", "Kraken", 110],
-  ["Imp Devil", "Demon Lord", 105],
-  ["Worm Creep", "Devourer", 95],
-  ["Angel Mage", "Seraphim Arbiter", 90],
-  ["Ice Mage", "Ice Mage", 80],
-  ["Queen Worm", "Broodmother", 75],
-  ["Zombie Goblin King", "Zombie Orc Lord", 65],
-  ["Bat Lord", "Night Baron", 55],
-  ["Goblin Giant Gold", "Orc King", 55],
-  ["Snake Naga", "Naga", 50],
-  ["Hermit King", "Hermit King", 45],
-  ["Cactus Boss", "Cactus King", 40],
-  ["Sunflora Pixie", "Lady Fey", 40],
-  ["Scorpion King", "Scorpion King", 40],
-  ["Cat Bolt", "Raiju", 35],
-  ["Werewolf", "Lycanthrope", 30],
-  ["Hare", "Vorpal Hare", 30],
-  ["Sting", "Vespa", 15],
+  ["NightmareBerserkerBoss","Echo Berserker Master",155,"Dark Fortress"],
+  ["NightmareGunslingerBoss","Echo Gunslinger Master",155,"Dark Fortress"],
+  ["NightmareNecromancerBoss","Echo Necromancer Master",155,"Dark Fortress"],
+  ["NightmarePaladinBoss","Echo Paladin Master",155,"Dark Fortress"],
+  ["NightmarePriestBoss","Echo Priest Master",155,"Dark Fortress"],
+  ["NightmareShinobiBoss","Echo Shinobi Master",155,"Dark Fortress"],
+  ["NightmareWizardBoss","Echo Wizard Master",155,"Dark Fortress"],
+  ["NightmareWeaverBoss","Echo Weaver Master",150,"Dark Manor"],
+  ["Mega Ice Golem","Ice Titan",140,"Starfall Tundra"],
+  ["Turtle King","Turtle Champion",140,"Turtle Nexus"],
+  ["Alien Big Blink","Cosmic Entity",135,"Night Garden"],
+  ["Spider Queen Robot","Suphara",135,"The Forge"],
+  ["Death Mage","Abyss Archon",130,"Abyss Castle Library"],
+  ["Goblin Warchief","Orc Warchief",130,"Goblin Warcamp"],
+  ["Wraith","Wraith King",125,"Abyss Castle Crypt"],
+  ["Eyeball Monster","Kraken",110,"Sunken Depths"],
+  ["Imp Devil","Demon Lord",105,"Demon's Maw"],
+  ["Worm Creep","Devourer",95,"Underground Cavern"],
+  ["Angel Mage","Seraphim Arbiter",90,"Sanctum of Light"],
+  ["Ice Mage","Ice Mage",80,"Crystal Cave"],
+  ["Queen Worm","Broodmother",75,"Swamp Wilderness"],
+  ["Zombie Goblin King","Zombie Orc Lord",65,"Goblin Cave 2"],
+  ["Bat Lord","Night Baron",55,"Forgotten Depths 2"],
+  ["Goblin Giant Gold","Orc King",55,"Goblin Village"],
+  ["Snake Naga","Naga",50,"Forgotten Depths 1"],
+  ["Hermit King","Hermit King",45,"Mystic Lake 2"],
+  ["Cactus Boss","Cactus King",40,"Windy Desert South"],
+  ["Sunflora Pixie","Lady Fey",40,"Fairy Glen"],
+  ["Scorpion King","Scorpion King",40,"Windy Desert North"],
+  ["Cat Bolt","Raiju",35,"Windy Desert"],
+  ["Werewolf","Lycanthrope",30,"Festering Woods 2"],
+  ["Hare","Vorpal Hare",30,"Bunny Woods"],
+  ["Sting","Vespa",15,"Sunny Meadows 2"],
 ] as const;
 export type BossId = typeof rows[number][0];
 const codes: Partial<Record<BossId, string>> = {
@@ -43,8 +45,8 @@ const codes: Partial<Record<BossId, string>> = {
   NightmarePaladinBoss: "pa", NightmarePriestBoss: "pr", NightmareShinobiBoss: "s", NightmareWizardBoss: "w",
 };
 export interface Boss { id: BossId; name: string; level: number; map: string; endgame: boolean; textCode?: string }
-export const BOSSES: readonly Boss[] = Object.freeze(rows.map(([id, name, level]) => Object.freeze({
-  id, name, level, map: codes[id] ? "Dark Fortress" : "", endgame: !!codes[id], ...(codes[id] ? { textCode: codes[id] } : {}),
+export const BOSSES: readonly Boss[] = Object.freeze(rows.map(([id, name, level, map]) => Object.freeze({
+  id, name, level, map, endgame: !!codes[id], ...(codes[id] ? { textCode: codes[id] } : {}),
 })).sort((a, b) => b.level - a.level || a.name.localeCompare(b.name, "en")));
 const byId = new Map(BOSSES.map(b => [b.id, b]));
 export function bossById(id: unknown): Boss | undefined { return typeof id === "string" ? byId.get(id as BossId) : undefined; }
@@ -77,4 +79,9 @@ export function parseSelection(value: unknown): Selection {
 }
 export function isSelected(slot: { mobId: BossId; region: Region }, selection: Selection): boolean {
   return selection.bossIds.includes(slot.mobId) && selection.regions.includes(slot.region);
+}
+
+/** Filter options come from visible bosses, including bosses without observations yet. */
+export function selectedLocations(selection: Selection): string[] {
+  return [...new Set(BOSSES.filter(b => selection.bossIds.includes(b.id)).map(b => b.map))].sort((a, b) => a.localeCompare(b, "en"));
 }

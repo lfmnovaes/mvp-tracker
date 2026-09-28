@@ -2,7 +2,7 @@ import { test, expect, afterEach } from "bun:test";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { BOSSES, bossById, bossPreset, defaultSelection, parseSelection, normalizeRegion, regionFromInstance } from "../src/domain/catalog";
+import { BOSSES, bossById, bossPreset, defaultSelection, parseSelection, normalizeRegion, regionFromInstance, selectedLocations } from "../src/domain/catalog";
 import { CLOCK_SKEW, MINUTE, EXPIRE_AFTER, parseManualTime, formatClock, formatTimestamp, dateInZone } from "../src/domain/time";
 import { applyManual, emptySlot, expireSlots, mergeObservations, parseObservation, parseTimerState, timerStatus, type Observation, type ManualEntry } from "../src/domain/timers";
 import { queryTimers } from "../src/domain/query";
@@ -32,7 +32,10 @@ test("catalog presets protect the exact Endgame group without selecting Weaver o
   expect(bossById("Spider Queen Robot")?.name).toBe("Suphara");
   expect(bossPreset("none")).toEqual([]);
   expect(defaultSelection().regions).toEqual(["sa", "na"]);
-  expect(BOSSES.filter(b => b.map !== "").every(b => b.endgame && b.map === "Dark Fortress")).toBe(true);
+  expect(BOSSES.every(b => b.map.length > 0)).toBe(true);
+  expect(BOSSES.filter(b => b.endgame).every(b => b.map === "Dark Fortress")).toBe(true);
+  expect(bossById("Bat Lord")?.map).toBe("Forgotten Depths 2");
+  expect(bossById("NightmareWeaverBoss")?.map).toBe("Dark Manor");
   expect(normalizeRegion(" SUN ")).toBe("na");
   expect(regionFromInstance("nova123-instance")).toBe("sa");
   expect(regionFromInstance("unknown123")).toBeUndefined();
@@ -115,15 +118,18 @@ test("invalid batches fail atomically, unknown slots stay unresolved and future 
   expect(() => parseTimerState({ schemaVersion: 1, slots: [{ ...slot, outdated: false, observation: { ...valid, channel: 1 } }] }, now)).toThrow("mismatch");
 });
 
-test("deselection hides and stops ingestion without deleting retained observations", () => {
+test("deselection hides timers but continues ingestion and persists fresh evidence", () => {
   const root = temporary(); let clock = now;
   const store = new TimerStore(root, defaultSelection(), () => clock);
   store.ingest([observation("selected")]);
   store.setSelection({ bossIds: [], regions: [] });
   expect(store.selectedSnapshot()).toEqual([]); expect(store.snapshot().length).toBe(1);
-  expect(store.ingest([observation("not-accepted", { gatheredAt: now })])).toBe(false);
+  expect(store.ingest([observation("hidden-update", { gatheredAt: now })])).toBe(true);
+  const restarted = new TimerStore(root, { bossIds: [], regions: [] }, () => clock);
+  expect(restarted.selectedSnapshot()).toEqual([]);
+  expect(restarted.snapshot()[0].observation?.observationId).toBe("hidden-update");
   expect(() => store.saveManual(manual(now - MINUTE))).toThrow("not selected");
-  store.setSelection(defaultSelection()); expect(store.selectedSnapshot()[0].observation?.observationId).toBe("selected");
+  store.setSelection(defaultSelection()); expect(store.selectedSnapshot()[0].observation?.observationId).toBe("hidden-update");
   clock += EXPIRE_AFTER; store.expire(); expect(store.snapshot()[0]).toEqual({ ...slot, outdated: true });
   expect(readFileSync(store.file, "utf8")).not.toContain("selected");
 });
@@ -196,4 +202,17 @@ test("search isolates region/channel tokens and sorting uses numeric/time fields
   expect(queryTimers(slots, defaultSelection(), now, { search: "ch:155" })).toEqual([]);
   expect(queryTimers(slots, defaultSelection(), now, { search: "region:na" })).toEqual([]);
   expect(queryTimers(slots, defaultSelection(), now, { sort: { field: "channel", direction: "desc" } }).map(r => r.slot.channel)).toEqual([3, 2, 1]);
+});
+
+test("location choices follow visible bosses and combine with region, channel and search", () => {
+  const selection = { bossIds: bossPreset("all"), regions: defaultSelection().regions };
+  expect(selectedLocations(defaultSelection())).toEqual(["Dark Fortress"]);
+  expect(selectedLocations({ bossIds: [], regions: [] })).toEqual([]);
+  expect(selectedLocations(selection)).toHaveLength(27);
+  const slots = mergeObservations([], [observation("paladin"), observation("baron", { mobId: "Bat Lord" }), observation("baron-na", { mobId: "Bat Lord", region: "na", channel: 1 }), observation("naga", { mobId: "Snake Naga" })], now);
+  const filtered = queryTimers(slots, selection, now, { location: "Forgotten Depths 2", region: "sa", channel: 2, search: "baron" });
+  expect(filtered.map(r => r.slot.observation?.observationId)).toEqual(["baron"]);
+  expect(queryTimers(slots, defaultSelection(), now, { location: "Forgotten Depths 2" })).toEqual([]);
+  expect(queryTimers(slots, selection, now, { location: "Forgotten Depths" })).toEqual([]);
+  expect(queryTimers(slots, selection, now, { search: "forgotten depths" })).toHaveLength(3);
 });

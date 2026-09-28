@@ -231,7 +231,7 @@ async function initialize(trayReady: boolean) {
     if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
   }, undefined, logger);
   state.sharing = sharing.snapshot();
-  sync = new SyncCoordinator(sharing, timers, () => state.settings.tracking, () => capture?.snapshot().identity.name, flushObservations, () => {
+  sync = new SyncCoordinator(sharing, timers, () => capture?.snapshot().identity.name, flushObservations, () => {
     state.sync = sync.snapshot(); state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
     if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {});
   }, settings.syncInterval, undefined, undefined, logger);

@@ -1,5 +1,13 @@
 # Verification
 
+## 0.1.9.4
+
+Both TypeScript projects and **105 tests** (91 Bun +14 Convex) pass with Convex 1.46.0, convex-test 0.0.60, Vitest 5.0.2, Bun typings 1.4.2 and Node 24 typings 24.19.0. Three visibility/ingestion/sync regressions failed before implementation and passed after the changes. Coverage includes hidden updates across restart, the legacy cursor refresh, attribution, no-op sync and combined location/region/channel/search filters.
+
+All 33 supported bosses have verified overworld locations from SpiritValers. The seven Dark Fortress bosses retain that location; Echoing Spire arena variants are excluded. No protocol/schema change or Convex deployment is required when upgrading from 0.1.9.2 or 0.1.9.3.
+
+Windows build and archive verification pass: 15 runtime files, 97 source files, three x64 executables and no private state. Both runtime/source tamper checks pass. Synthetic 25-iteration benchmark: 42 slots median 0.50 ms/max 2.45 ms; 594 slots median 3.67 ms/max 4.84 ms. No game/UI control or live database mutation was performed; interactive acceptance remains in Step 10.
+
 ## 0.1.9.3
 
 Both TypeScript projects and **103 tests** (89 Bun +14 Convex) pass with capture 3.0.3, items 0.1.12 and skills 0.2.5. A new synthetic wire test exercises the September 21 ChannelList_T hash through the installed decoder and tracker, including correct SA/channel/kill/killer attribution. Upstream boss IDs, names and levels are unchanged; protocol 4/schema 2 remain unchanged, so upgrading from 0.1.9.2 needs no Convex deployment.
