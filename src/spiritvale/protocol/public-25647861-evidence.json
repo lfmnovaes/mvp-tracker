@@ -1,0 +1,96 @@
+{
+  "buildId": "25647861",
+  "branch": "public",
+  "gameAssemblySha256": "6202eb64513ca6f5d338dbd44b500a3201157d99f8e7b572364e60a224654c8b",
+  "metadataVersion": 31,
+  "verifiedRpcs": [
+    {
+      "typeName": "BaseUnitController",
+      "methodName": "TraverseActive",
+      "wireHash": 4,
+      "packetKind": "targetRpc",
+      "writerRva": "0x6c8d20",
+      "sendRva": "0xb4f0a0"
+    },
+    {
+      "typeName": "PlayerController",
+      "methodName": "ChannelList_T",
+      "wireHash": 38,
+      "packetKind": "targetRpc",
+      "writerRva": "0x8e2070",
+      "sendRva": "0xb4f0a0"
+    },
+    {
+      "typeName": "PlayerSave",
+      "methodName": "QuitCharacter_Rpc",
+      "wireHash": 12,
+      "packetKind": "serverRpc",
+      "writerRva": "0x91b420",
+      "sendRva": "0xb4ef60"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversSetSendToOwner",
+      "wireHash": 0,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb88b60",
+      "sendRva": "0xb4eb90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ServerSetInterval",
+      "wireHash": 1,
+      "packetKind": "serverRpc",
+      "writerRva": "0xb8a5c0",
+      "sendRva": "0xb4ef60"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversSetInterval",
+      "wireHash": 2,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb8a4d0",
+      "sendRva": "0xb4eb90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "TargetUpdateTransform",
+      "wireHash": 3,
+      "packetKind": "targetRpc",
+      "writerRva": "0xb8a950",
+      "sendRva": "0xb4f0a0"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversUpdateClientAuthoritativeTransform",
+      "wireHash": 4,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb88d40",
+      "sendRva": "0xb4eb90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ServerUpdateTransform",
+      "wireHash": 5,
+      "packetKind": "serverRpc",
+      "writerRva": "0xb8a800",
+      "sendRva": "0xb4ef60"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ServerSetSynchronizedProperties",
+      "wireHash": 6,
+      "packetKind": "serverRpc",
+      "writerRva": "0xb8a6e0",
+      "sendRva": "0xb4ef60"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversSetSynchronizedProperties",
+      "wireHash": 7,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb88c50",
+      "sendRva": "0xb4eb90"
+    }
+  ]
+}

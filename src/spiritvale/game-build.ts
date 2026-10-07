@@ -1,0 +1,5 @@
+/** Current public GameAssembly SHA-256; layout baseline remains September 21. */
+export const CURRENT_GAME_BUILD_FINGERPRINT = "6202eb64513ca6f5d338dbd44b500a3201157d99f8e7b572364e60a224654c8b";
+export const LEGACY_GAME_BUILD_FINGERPRINT = "ce04a28c94ea82848b85c29d2867d2c9061a8972b998b30e898fcb3f65a166ba";
+export const BUNDLED_GAME_BUILD_FINGERPRINTS = [CURRENT_GAME_BUILD_FINGERPRINT, LEGACY_GAME_BUILD_FINGERPRINT] as const;
+export type GameBuildFingerprint = (typeof BUNDLED_GAME_BUILD_FINGERPRINTS)[number];

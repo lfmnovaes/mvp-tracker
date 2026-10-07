@@ -1,5 +1,5 @@
-import { decodeBossGravestone, type BossGravestone, type CapturedFishNetPacket } from "@kar-mi/spirit-vale-tools-capture";
-import { FishNetCharacterTracker } from "@kar-mi/spirit-vale-tools-character";
+import { decodeBossGravestone, type BossGravestone, type CapturedFishNetPacket } from "../spiritvale";
+import { CharacterIdentity } from "../spiritvale/identity";
 import { regionFromInstance, type Region } from "../domain/catalog";
 import { parseObservation, type Observation, type WorldPosition } from "../domain/timers";
 import type { LogContext } from "./log-context";
@@ -15,14 +15,14 @@ export interface CaptureContext {
 }
 type PendingGrave = { grave: BossGravestone; gatheredAt: number; observedByCharacter?: string; position?: WorldPosition };
 
-// Uses the upstream grave decoder and local-player tracker. Unlike the overlay's
+// Uses the local grave decoder and identity-only player tracker. Unlike the overlay's
 // object fingerprint, transport identity suppresses replays without suppressing revisits.
 export class CapturePackets {
   private connection?: string;
   private closed = new Set<string>();
   private seen = new Map<string, number>();
   private pruneAt = 0;
-  private character = new FishNetCharacterTracker();
+  private character = new CharacterIdentity();
   private entities = new CapturePositions();
   private context: Omit<CaptureContext, "unresolved"> = {};
   private pending = new Map<string, PendingGrave>();
@@ -44,7 +44,7 @@ export class CapturePackets {
   }
   reset(clearClosed = true) {
     const cachedCharacter = this.context.character ?? this.context.cachedCharacter;
-    this.character = new FishNetCharacterTracker();
+    this.character = new CharacterIdentity();
     this.entities.clear();
     this.context = { cachedCharacter };
     this.connection = undefined;
@@ -99,7 +99,7 @@ export class CapturePackets {
       this.authenticated = packet.connectionId;
       const cachedCharacter = this.context.character ?? this.context.cachedCharacter;
       this.context = { cachedCharacter };
-      this.character = new FishNetCharacterTracker();
+      this.character = new CharacterIdentity();
       this.entities.clear();
       this.pending.clear(); this.awaitingContext = true;
       return;
@@ -136,7 +136,7 @@ export class CapturePackets {
       || packet.packetName === "objectDespawn" && transport.direction === "inbound"
       || packet.packetName === "syncType" && packet.networkBehaviourType === "StatusComponent" && transport.direction === "inbound") {
       if (packet.packetName === "serverRpc" && packet.objectId !== undefined && this.character.currentObjectId() !== packet.objectId) {
-        this.character = new FishNetCharacterTracker(); this.context.character = undefined;
+        this.character = new CharacterIdentity(); this.context.character = undefined;
       }
       this.character.consume(packet);
       const name = this.character.state().identity?.name;

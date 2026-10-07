@@ -1,5 +1,15 @@
 # Verification
 
+## 0.1.9.5 — Unreleased
+
+Both TypeScript projects and **267 tests** (253 Bun +14 Convex) pass. Frozen-lockfile installation succeeds with no @kar-mi dependency. The public-build ChannelList_T ID 38 fixture failed before correction and passes afterward; the obsolete ID does not produce current channel context. Historical transport/decoder fixtures use their explicit September 21 profile.
+
+Recording coverage verifies original bytes/microseconds, frames before attribution/duplicates, disabled-mode silence, capture restarts/stale drivers, time/size limits, invalid frames, storage-error context, ZIP export and interrupted/oversized PCAP rejection. The actual offline analyzer command passes against a fabricated PCAP with recorded game endpoints. The offline RPC inspection script reproduces all 11 stored constants exactly from installed public build 25647861.
+
+Windows build and runtime/source verification pass: 15 runtime files, three Windows x64 executables, no private state, and rejection of both tampered archives. Synthetic 25-iteration benchmark: 42 slots median 0.48 ms/max 2.32 ms; 594 slots median 3.52 ms/max 5.13 ms. One Windows log-rotation run exposed a transient internal .tmp entry; isolated and full-suite reruns passed. No speculative logging change was made.
+
+No game/UI control, live packet recording, Convex deployment or database mutation was performed. Prefab/SyncType compatibility and live grave capture remain pending the [crypt recording](packet-recording.md). No 0.1.9.5 tag, draft or release is authorized until confirmed.
+
 ## 0.1.9.4
 
 Both TypeScript projects and **105 tests** (91 Bun +14 Convex) pass with Convex 1.46.0, convex-test 0.0.60, Vitest 5.0.2, Bun typings 1.4.2 and Node 24 typings 24.19.0. Three visibility/ingestion/sync regressions failed before implementation and passed after the changes. Coverage includes hidden updates across restart, the legacy cursor refresh, attribution, no-op sync and combined location/region/channel/search filters.

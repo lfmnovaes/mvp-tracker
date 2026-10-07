@@ -48,3 +48,13 @@ Healthy snapshots normally have writable storage, ready tray, no pending reset a
 - With only Endgame visible, encounter a non-Endgame grave, sync, then enable that boss: its original gathered time and location should appear. Repeat across clients with different visible selections.
 - Combine location, region, channel and search; deselect the active location’s last boss and save: the location filter returns to All locations. Verify toolbar fit at the supported window sizes.
 - Upgrade an existing 0.1.9.3 data folder: first sync retrieves hidden records; unchanged later syncs do not advance revision.
+
+## 0.1.9.5 acceptance — release held
+
+- [ ] Follow the [crypt recording workflow](packet-recording.md); validate correct boss, region/channel, killer, observed time and optional position.
+- [ ] Repeat across channel/map changes, game reconnect and a crypt revisit; note any missing or rejected observation.
+- [ ] Verify nonzero raw frames, marker placement, Stop/ZIP/Open recordings, header countdown and no recording after restart.
+- [ ] Verify automatic stop, read-only/full storage behavior and responsive UI during a busy adapter recording.
+- [ ] Verify essential logs contain no payloads/names and Clear logs preserves recordings.
+
+Submit the ZIP with expected boss/region/channel, encounter time and observed UI result. Do not release until live capture is confirmed.

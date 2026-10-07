@@ -1,6 +1,6 @@
 {
   "name": "mvp-tracker",
-  "version": "0.1.9.4",
+  "version": "0.1.9.5",
   "private": true,
   "description": "Portable Windows boss tracker for Spirit Vale",
   "author": "Luis Fernando <lfmnovaes@gmail.com>",
@@ -10,18 +10,17 @@
   "scripts": {
     "setup": "neu update",
     "typecheck": "tsc --noEmit && tsc --noEmit -p convex/tsconfig.json",
-    "test": "bun test ./tests",
+    "test": "bun test ./tests ./src/spiritvale",
     "build": "bun scripts/build.ts && neu build",
     "dev": "bun run build && bun scripts/run.ts",
     "package": "bun run build && bun scripts/package.ts",
     "test:convex": "vitest run",
     "convex:types": "bun scripts/convex-codegen-offline.ts",
     "check": "bun run typecheck && bun run test && bun run test:convex",
-    "benchmark": "bun scripts/benchmark.ts"
+    "benchmark": "bun scripts/benchmark.ts",
+    "analyze:recording": "bun scripts/analyze-recording.ts"
   },
   "dependencies": {
-    "@kar-mi/spirit-vale-tools-capture": "3.0.3",
-    "@kar-mi/spirit-vale-tools-character": "0.6.1",
     "@neutralinojs/lib": "6.9.0",
     "convex": "1.46.0",
     "preact": "10.29.8"

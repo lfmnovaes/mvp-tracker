@@ -1,6 +1,7 @@
-import { PacketCapture, getNpcapStatus, listNpcapDevices, resolveCaptureDevice } from "@kar-mi/spirit-vale-tools-capture/capture";
-import type { CaptureConfig } from "@kar-mi/spirit-vale-tools-capture";
+import { PacketCapture, getNpcapStatus, listNpcapDevices, resolveCaptureDevice } from "../spiritvale/capture";
+import type { CaptureConfig } from "../spiritvale";
 export interface CaptureDriver {
+  setDiagnostics?(enabled: boolean): void;
   on(event: string, listener: (...args: any[]) => void): unknown;
   start(config: CaptureConfig): Promise<void>;
   stop(): Promise<void>;

@@ -2,7 +2,7 @@
 
 ## Components
 
-Preact UI → validated IPC → Bun backend. Native C# handles tray, hotkeys and physical window placement; Neutralino hosts the window. Capture/character adapters supply graves, bounded position joins and local identity. One timer store and sync coordinator own persistence/merging. No reward/combat collectors run.
+Preact UI → validated IPC → Bun backend. Native C# handles tray, hotkeys and physical window placement; Neutralino hosts the window. The local src/spiritvale transport/decoder and identity adapter supply graves, bounded position joins and local identity. One timer store and sync coordinator own persistence/merging. No reward/combat collectors run.
 
 Portable state: data/settings.json (preferences), data/sharing.json (URL), data/timers.json (slots and durable sync state), data/window.json (normal bounds/monitor). Atomic saves preserve consistency. Expired evidence is discarded on normal reads/writes; read-only storage is reported without an AppData fallback.
 
@@ -62,3 +62,7 @@ Local timers/full JSON use schema 2 and read schema 1. The MVPT1 envelope is unc
 ## Sync
 
 All supported bosses/regions are captured and retained regardless of display preferences. Manual entry and clipboard sharing retain their selected-only scope. One mutation merges all pending evidence against current server rows and returns revision deltas. Omitted slots are preserved. The legacy cache selection field now holds all-supported-v1, forcing one full refresh on upgrade; display preference changes no longer invalidate the cursor. Client evidence, acknowledgements and cursor persist together. A new connection/generation forces discovery; late replies from an old connection are ignored. Reset IDs persist before sending, and retries reuse them. Server scheduler clears expired evidence even with no open client.
+
+## Opt-in diagnostic state
+
+Monitor all is session-only and starts off. Raw PCAP/events/summary/ZIP files live in logs/recordings, separate from essential rotating logs and timer storage. Limits: ten minutes/128 MiB per session. No raw recording is sent to Convex, clipboard exports or imports. [Details](packet-recording.md).

@@ -1,6 +1,8 @@
 # MVP Tracker plan
 
-Version 0.1.9.4. Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
+Version 0.1.9.5 (unreleased). Windows 11 x64, portable and unsigned. Steps 0–9 are implemented; interactive acceptance is consolidated in Step 10.
+
+**Release hold:** confirm current public-game grave capture from a Monitor all recording before any 0.1.9.5 tag, draft or publication.
 
 ## Scope
 
@@ -30,6 +32,7 @@ Version 0.1.9.4. Windows 11 x64, portable and unsigned. Steps 0–9 are implemen
 | 7 | Serialized sync, expiry, Reset and outdated cleanup |
 | 8 | Diagnostics, regression coverage, placement and timer presentation |
 | 9 | Windows CI, verified archives/checksums and draft releases |
+| 0.1.9.5 patch | Local capture ownership, verified channel RPC correction and bounded raw diagnostics; live confirmation pending |
 | 0.1.9.4 patch | Complete boss locations, map filter, collection independent of visibility and compatible dependency updates |
 | 0.1.9.3 patch | September 21 capture protocol and compatible character catalog updates |
 | 0.1.9.2 patch | Capture context/replay fixes, coordinates, reset cutoff correction, configurable age colors and protocol 4 |
@@ -43,6 +46,7 @@ All unfinished desktop, game, multiplayer and clean-machine checks from Steps 1�
 - [ ] Tray/single-instance/shortcuts, Explorer restart, screen/DPI placement, sleep and process shutdown.
 - [ ] Real grave/revisit capture, fresh-kill packets, character/region/channel changes, Npcap/adapter failures and recovery.
 - [ ] Two clients, anonymous attribution, concurrent sync/reset/cleanup, dropped responses, offline recovery and 5s polling usage.
+- [ ] Monitor all: real crypt capture/revisit, channel/observer/coordinates, zero-frame adapter hint, ZIP/recording limits and privacy review; see [recording guide](packet-recording.md).
 - [ ] Open/Clear logs, diagnostic context/redaction, read-only/corrupt storage, portable upgrades.
 - [ ] Clean Windows 11 x64 startup/Exit, prerequisites and final release review.
 

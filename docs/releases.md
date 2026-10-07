@@ -23,6 +23,8 @@ Keep both generated ZIPs together for verification.
 
 The runtime excludes docs, source and Markdown files. Required license notices remain; corresponding source is offered beside the binary. extensions/backend/index.js runs capture, storage and sync and must remain. No local data, logs, credentials or dependency cache is packaged. Packaging refuses to replace a versioned folder containing data/logs.
 
+**0.1.9.5 hold:** local packages and main-branch CI only. No tag, draft release or publication until live capture is confirmed.
+
 ## CI and release
 
 Windows portable runs for main pushes, PRs, manual dry runs and app-v* tags on windows-2025 with pinned actions/runtimes. It checks types/tests, benchmarks, builds, verifies both archives and rejects a tampered ZIP. Artifacts last seven days. Windows Server CI does not replace Windows 11 interactive acceptance.

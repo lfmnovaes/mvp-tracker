@@ -9,15 +9,17 @@
 | Clock error | Correct Windows time; display timezone is fixed to America/Sao_Paulo |
 | Empty observation/expiresAt | Expected after kill +150 minutes; Delete outdated removes the retained label |
 | Capture inactive | Verify Npcap WinPcap compatibility, game and adapter; Retry capture and revisit the grave |
-| Graves intermittently missing | Inspect capture context; if waiting for server/channel, change channel and revisit. Collect a five-minute sample for attribution/decoder errors |
+| Graves intermittently missing | Inspect capture context; if waiting for server/channel, change channel and revisit. Use Monitor all before changing channel/approaching a crypt, mark the encounter, Stop & save, and share the ZIP; see [recording guide](packet-recording.md) |
 | Missing X/Y | Coordinates require a reliable object position; enable capture in Settings. Not located is valid when position is unavailable |
 | No current character | Anonymous sharing is supported; an optional valid manual name can be entered in Capture |
+
+Opt-in **Monitor all** writes raw recordings separately from rotating logs; [scope, limits and instructions](packet-recording.md). Zero frames means capture is not collecting traffic; a nonzero count does not prove grave decoding. Clear logs preserves recordings.
 
 Settings → **Diagnostics** provides Open logs, Clear logs, Copy diagnostics and five-minute health sampling. Open logs requests Explorer at logs/ beside the executable. Clear logs removes only the five known rotating app logs.
 
 Logs retain at most five 2 MiB files for seven days. Context includes event, severity/version, component, operation, failure category, safe request ID/duration/counts and, when available, reason/error type/system error code. Fatal compiled frames retain only backend:line:column. No raw exception strings, personal paths, URLs, names, packet or clipboard data are recorded.
 
-Capture reasons: relay-duplicates (VPN/proxy duplicates), unattributed-traffic/unowned-socket (process attribution), litenet-decode/fishnet-decode (decoder), target-scan (process discovery), npcap-missing/npcap-access/adapter-missing (setup), pending-expired/unknown-context (revisit after context settles), experimental-rejected (bad experimental entity data; valid graves still processed), timestamp-invalid/observation-invalid (rejected evidence), sleep-clock/packet-stall (recovery). Unknown library warnings use driver-warning.
+Capture reasons: relay-duplicates (VPN/proxy duplicates), unattributed-traffic/unowned-socket (process attribution), litenet-decode/fishnet-decode (decoder), target-scan (process discovery), npcap-missing/npcap-access/adapter-missing (setup), pending-expired/unknown-context (revisit after context settles), experimental-rejected (bad experimental entity data; valid graves still processed), timestamp-invalid/observation-invalid (rejected evidence), sleep-clock/packet-stall (recovery). Unknown driver warnings use driver-warning. protocol-unmapped identifies an unresolved expected channel-context RPC. Detailed exceptions/packet bodies are recorded only during Monitor all.
 
 Equivalent errors are throttled for 60 seconds with a suppressed count. Different reasons remain distinct. Unchanged sync is quiet; health samples expose counts and revision. A new observation, expiry or deletion can legitimately advance revision.
 

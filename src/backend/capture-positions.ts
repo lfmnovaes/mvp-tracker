@@ -1,4 +1,4 @@
-import type { CapturedFishNetPacket } from "@kar-mi/spirit-vale-tools-capture";
+import type { CapturedFishNetPacket } from "../spiritvale";
 import { parsePosition, type WorldPosition } from "../domain/timers";
 
 interface Entity { at: number; nested: boolean; position?: WorldPosition }

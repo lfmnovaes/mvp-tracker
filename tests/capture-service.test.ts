@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
-import type { CaptureConfig } from "@kar-mi/spirit-vale-tools-capture";
+import type { CaptureConfig } from "../src/spiritvale";
 import { CaptureService, type CaptureLog } from "../src/backend/capture-service";
 import type { CaptureRuntime } from "../src/backend/capture-runtime";
 import { captureDefaults } from "../src/shared/capture";
@@ -25,9 +25,9 @@ function harness() {
 }
 const settle = () => new Promise<void>(resolve => setImmediate(resolve));
 
-test("capture is process-scoped passive UDP and follows game exit without losing local timers", async () => {
+test("capture is process-scoped passive TCP/UDP and follows game exit without losing local timers", async () => {
   const h = harness(); await h.service.restart(); const driver = h.drivers[0]!;
-  expect(driver.config).toEqual({ protocols: ["udp"], targetProcessName: "SpiritVale.exe", decodeFishNet: true, deviceName: "adapter", suppressDuplicates: true });
+  expect(driver.config).toEqual({ protocols: ["udp", "tcp"], targetProcessName: "SpiritVale.exe", decodeFishNet: true, deviceName: "adapter", suppressDuplicates: true });
   expect(h.service.snapshot()).toMatchObject({ state: "running", game: "waiting", adapter: "Ethernet" });
   driver.emit("targetStatus", { state: "active", processIds: [42] });
   expect(h.service.snapshot().game).toBe("active");

@@ -6,7 +6,11 @@
 
 The coordinate experiment defaults on and has a Capture switch. Joins are capped at 2,048 objects and five idle minutes, and reset across maps/channels/authentication or object reuse. Bad positions cannot suppress valid graves. Validate landmarks, partial transforms, revisits and map changes in [Step 10](testing.md). Living-boss detection was withdrawn; no monster/health collector runs.
 
-## Capture investigation
+## Current capture ownership — 0.1.9.5 (unreleased)
+
+Required capture source is owned under src/spiritvale; upstream npm dependencies are removed. The public-build channel RPC changed to 38 and the wire regression now passes. Prefab/SyncType layouts and coordinate accuracy remain pending a real recording. Monitor all saves raw traffic before attribution/decoding so future protocol changes can be analyzed locally. [Evidence and workflow](packet-recording.md).
+
+## Historical capture investigation
 
 Compared upstream HEADs on 2026-09-13: overlay 4f1f8000 and tools 87db1d72. Capture 3.0.2 and character 0.6.1 remain current for these sources.
 

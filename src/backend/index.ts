@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { errorContext, type LogContext } from "./log-context";
 import { resolve, join } from "node:path";
 import { NeutralinoClient } from "./neutralino-client";
@@ -8,6 +9,8 @@ import { Logger } from "./logger";
 import { TimerStore } from "./timer-store";
 import { CaptureService } from "./capture-service";
 import { emptyCapture } from "../shared/capture";
+import { installedGameInfo } from "./installed-game";
+import { PacketRecording, type WireFrame } from "./packet-recording";
 import { Diagnostics } from "./diagnostics";
 import { decodeImport, exportTimers, previewImport } from "./exchange";
 import { compareEvidence, parseObservation, slotKey, type Observation } from "../domain/timers";
@@ -26,6 +29,7 @@ let capture: CaptureService | undefined;
 let sharing: SharingConnection;
 let sync: SyncCoordinator;
 const diagnostics = new Diagnostics();
+const recording = new PacketRecording(join(root, "logs"), Date.now, undefined, undefined, error => logger?.write("recording-failed", { component: "capture", operation: "monitor", category: "storage", ...errorContext(error) }));
 const pendingObservations = new Map<string, Observation>();
 function flushObservations() {
   if (!pendingObservations.size) return false;
@@ -69,6 +73,7 @@ async function exitApp() {
   if (exiting) return; exiting = true;
   sync?.close();
   sharing?.close();
+  recording.stop("app-exit");
   clearInterval(cleanupTimer); await capture?.stop(); flushObservations(); timers?.close();
   logger?.write("stopped", { component: "backend", operation: "shutdown" });
   try { send("exit"); } catch { }
@@ -82,6 +87,7 @@ native.onClose(() => {
   exiting = true;
   sync?.close();
   sharing?.close();
+  recording.stop("backend-close");
   clearInterval(cleanupTimer); void capture?.stop(); flushObservations(); timers?.close();
   try { send("exit"); } catch { }
   void Promise.race([companion?.exited ?? Promise.resolve(), Bun.sleep(1500)]).then(() => {
@@ -161,6 +167,18 @@ native.on(REQUEST, raw => {
           state.timers = timers.selectedSnapshot(); state.warning = timers.warning ?? store.warning;
           result = state; await publish({ type: "snapshot", value: state }); break;
         }
+        case "monitor": {
+          if (request.input === "start") {
+            recording.start({ gameBuild: await installedGameInfo(), settings: { capture: state.settings.capture, tracking: state.settings.tracking }, health: state.capture });
+            capture?.setMonitoring(true);
+          } else if (request.input === "stop") { capture?.setMonitoring(false); recording.stop(); await recording.archive(); }
+          else if (request.input === "mark") recording.event("crypt-encounter-marker", { capture: state.capture });
+          else {
+            mkdirSync(join(root, "logs", "recordings"), { recursive: true });
+            const explorer = Bun.spawn([join(process.env.WINDIR ?? "C:/Windows", "explorer.exe"), join(root, "logs", "recordings")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: false }); explorer.unref();
+          }
+          state.monitor = recording.snapshot(); result = state; await publish({ type: "snapshot", value: state }); break;
+        }
         case "diagnostics": {
           if (request.input === "open") {
             const explorer = Bun.spawn([join(process.env.WINDIR ?? "C:/Windows", "explorer.exe"), join(root, "logs")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: false });
@@ -239,7 +257,7 @@ async function initialize(trayReady: boolean) {
   capture = new CaptureService(settings.capture, observation => {
     const key = slotKey(observation), pending = pendingObservations.get(key);
     if (!exiting && (!pending || compareEvidence(observation, pending) > 0)) pendingObservations.set(key, observation);
-  }, undefined, Date.now, (event, context) => logger.write(event, context));
+  }, undefined, Date.now, (event, context) => { logger.write(event, context); recording.event(event, context); }, (event, value) => { if (event === "wireFrame") recording.frame(value as WireFrame); else recording.event(event, value); });
   void capture.restart();
   if (!trayReady) state.warning = "Tray is unavailable. Keep the window open; Exit is available in Settings.";
   logger.write("started", { component: "backend", operation: "startup" }); if (!store.writable) logger.write("storage-unavailable", { reason: "settings-storage" });
@@ -258,6 +276,11 @@ async function initialize(trayReady: boolean) {
     const captureState = capture?.snapshot() ?? emptyCapture();
     const captureChanged = JSON.stringify(captureState) !== JSON.stringify(state.capture);
     state.capture = captureState;
+    recording.tick({ capture: state.capture, sync: state.sync?.phase, storageWritable: state.storageWritable, trayReady: state.trayReady });
+    const monitor = recording.snapshot();
+    const monitorChanged = JSON.stringify(state.monitor) !== JSON.stringify(monitor);
+    state.monitor = monitor;
+    if (!monitor.active) { capture?.setMonitoring(false); if (monitor.session && !monitor.archive && !monitor.saving && monitor.reason !== "archive-error") void recording.archive(); }
     diagnostics.tick(state, Date.now());
     const diagnosticsChanged = state.diagnosticsUntil !== diagnostics.until;
     state.diagnosticsUntil = diagnostics.until;
@@ -268,7 +291,7 @@ async function initialize(trayReady: boolean) {
       if (timers.warning || state.warning === timerWarning) state.warning = timers.warning ?? store.warning;
       timerWarning = timers.warning;
     }
-    if (changed || warningChanged || captureChanged || diagnosticsChanged) {
+    if (changed || warningChanged || captureChanged || diagnosticsChanged || monitorChanged) {
       state.timers = timers.selectedSnapshot();
       if (timers.warning) state.warning = timers.warning;
       void publish({ type: "snapshot", value: state }).catch(() => {});

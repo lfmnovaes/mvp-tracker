@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { CapturedFishNetPacket } from "@kar-mi/spirit-vale-tools-capture";
+import type { CapturedFishNetPacket } from "../src/spiritvale";
 import { CapturePackets } from "../src/backend/capture-packets";
 import type { Observation } from "../src/domain/timers";
 
