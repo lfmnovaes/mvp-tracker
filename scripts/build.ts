@@ -25,6 +25,8 @@ for (const [entry, outdir, target] of [["src/ui/index.tsx", "resources", "browse
   const result = await Bun.build({ entrypoints: [entry], outdir, target, format: "esm", naming: "index.[ext]", minify: false });
   if (!result.success) throw new AggregateError(result.logs, "Bundle failed.");
 }
+const worker = await Bun.build({ entrypoints: ["src/backend/recording-worker.ts"], outdir: "extensions/backend", target: "bun", format: "esm", naming: "recording-worker.[ext]", minify: false });
+if (!worker.success) throw new AggregateError(worker.logs, "Recording worker bundle failed.");
 await copyFile("src/ui/index.html", "resources/index.html");
 await copyFile("src/ui/style.css", "resources/style.css");
 await copyFile(process.execPath, "extensions/bin/bun.exe");

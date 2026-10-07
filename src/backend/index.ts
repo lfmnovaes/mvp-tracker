@@ -171,8 +171,13 @@ native.on(REQUEST, raw => {
           if (request.input === "start") {
             recording.start({ gameBuild: await installedGameInfo(), settings: { capture: state.settings.capture, tracking: state.settings.tracking }, health: state.capture });
             capture?.setMonitoring(true);
-          } else if (request.input === "stop") { capture?.setMonitoring(false); recording.stop(); await recording.archive(); }
-          else if (request.input === "mark") recording.event("crypt-encounter-marker", { capture: state.capture });
+          } else if (request.input === "stop") { capture?.setMonitoring(false); recording.stop(); }
+          else if (request.input === "optimize" || request.input === "clear") {
+            if (recording.snapshot().maintenance) throw new Error("Recording maintenance is already running.");
+            // Reply immediately: a large batch must not hold the IPC queue or prevent Stop/Exit.
+            const refresh = () => { state.monitor = recording.snapshot(); if (!exiting) void publish({ type: "snapshot", value: state }).catch(() => {}); };
+            void recording.maintain(request.input).then(refresh, refresh);
+          }
           else {
             mkdirSync(join(root, "logs", "recordings"), { recursive: true });
             const explorer = Bun.spawn([join(process.env.WINDIR ?? "C:/Windows", "explorer.exe"), join(root, "logs", "recordings")], { stdin: "ignore", stdout: "ignore", stderr: "ignore", windowsHide: false }); explorer.unref();
@@ -280,7 +285,7 @@ async function initialize(trayReady: boolean) {
     const monitor = recording.snapshot();
     const monitorChanged = JSON.stringify(state.monitor) !== JSON.stringify(monitor);
     state.monitor = monitor;
-    if (!monitor.active) { capture?.setMonitoring(false); if (monitor.session && !monitor.archive && !monitor.saving && monitor.reason !== "archive-error") void recording.archive(); }
+    if (!monitor.active) capture?.setMonitoring(false);
     diagnostics.tick(state, Date.now());
     const diagnosticsChanged = state.diagnosticsUntil !== diagnostics.until;
     state.diagnosticsUntil = diagnostics.until;

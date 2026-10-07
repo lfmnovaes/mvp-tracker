@@ -40,6 +40,7 @@ jobs:
       - run: bun run benchmark
       - run: bun run setup
       - run: bun run package
+      - run: bun scripts/test-recording-worker.ts
       - name: Inspect portable ZIP
         shell: pwsh
         run: |

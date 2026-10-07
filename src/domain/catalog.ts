@@ -1,3 +1,4 @@
+import { MAP_LEVELS } from "./map-levels";
 // Minimal catalog extracted from spirit-vale-tools, commit 87db1d724d5738ec8b5f3cb258e357e757813264.
 // packages/rewards/src/catalog/definitions/mobs.ts — kar-mi, AGPL-3.0-only.
 // Boss locations: https://spiritvalers.com/wiki-data/spawns.json (2026-09-27).
@@ -83,5 +84,5 @@ export function isSelected(slot: { mobId: BossId; region: Region }, selection: S
 
 /** Filter options come from visible bosses, including bosses without observations yet. */
 export function selectedLocations(selection: Selection): string[] {
-  return [...new Set(BOSSES.filter(b => selection.bossIds.includes(b.id)).map(b => b.map))].sort((a, b) => a.localeCompare(b, "en"));
+  return [...new Set(BOSSES.filter(b => selection.bossIds.includes(b.id)).map(b => b.map))].sort((a, b) => (MAP_LEVELS[b] ?? 0) - (MAP_LEVELS[a] ?? 0) || a.localeCompare(b, "en"));
 }

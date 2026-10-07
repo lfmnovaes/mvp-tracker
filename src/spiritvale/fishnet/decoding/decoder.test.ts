@@ -3,8 +3,6 @@ import { describe, expect, test } from "bun:test";
 
 import { loadBundledFishNetRpcMap as loadMap } from "../mapping/bundled-rpc-map.ts";
 import {
-  decodeFishNetBundle,
-  decodeFishNetPayload,
   FishNetSessionDecoder,
 } from "./decoder.ts";
 import type { FishNetBehaviourDefinition, FishNetRpcMap } from "../types.ts";
@@ -1612,3 +1610,7 @@ describe("FishNet bundles and sessions", () => {
 
 // Historical wire fixtures explicitly exercise the retained September 21 layout.
 function loadBundledFishNetRpcMap(fingerprint = CURRENT_GAME_BUILD_FINGERPRINT) { return loadMap(fingerprint); }
+
+// Test helpers exercise the production session decoder rather than obsolete standalone APIs.
+function decodeFishNetBundle(payload: Buffer, options: { reliable: boolean; rpcMap?: FishNetRpcMap }) { return new FishNetSessionDecoder(options.rpcMap).decode(payload, options); }
+function decodeFishNetPayload(payload: Buffer, options: { reliable: boolean; rpcMap?: FishNetRpcMap }) { return decodeFishNetBundle(payload, options)[0]!; }

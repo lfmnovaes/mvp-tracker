@@ -28,8 +28,7 @@ test("raw records stay off by default, preserve unknown bytes/microseconds and s
   const before = pcap.length; recorder.frame(frame()); expect(readFileSync(join(folder, "wire-1.pcap")).length).toBe(before);
   expect(readFileSync(join(folder, "events.jsonl"), "utf8")).toContain("unknown-rpc");
   expect(recorder.snapshot()).toMatchObject({ active: false, frames: 1, reason: "user" });
-  await recorder.archive(); expect(recorder.snapshot().archive).toBe(recorder.snapshot().session + ".zip");
-  expect(readFileSync(join(root, "recordings", recorder.snapshot().archive!)).subarray(0, 2).toString()).toBe("PK");
+  expect(readdirSync(join(root, "recordings")).some(name => name.endsWith(".zip"))).toBe(false);
 });
 test("recording limits stop cleanly, rotate link types, report malformed records and permit another session", () => {
   const { root, recorder, advance } = setup(4000, 2000); recorder.start();

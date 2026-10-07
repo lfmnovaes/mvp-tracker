@@ -1,5 +1,5 @@
 import { closeSync, fsyncSync, mkdirSync, openSync, writeSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { arch, cpus, freemem, release, totalmem } from "node:os";
 import type { MonitorStatus } from "../shared/monitor";
 import { VERSION } from "../shared/protocol";
@@ -30,7 +30,7 @@ export class PacketRecording {
   constructor(private logsRoot: string, private now = Date.now, private maxBytes = MAX_BYTES, private duration = MAX_DURATION, private onFailure: (error: unknown) => void = () => {}) {}
   snapshot(): MonitorStatus { return { ...this.status }; }
   start(metadata: unknown = {}) {
-    if (this.status.active || this.status.saving) throw new Error("A recording is already active or being saved.");
+    if (this.status.active || this.status.maintenance) throw new Error("A recording is already active or being optimized.");
     const session = `monitor-${new Date(this.now()).toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
     this.directory = join(this.logsRoot, "recordings", session);
     mkdirSync(this.directory, { recursive: true });
@@ -103,23 +103,19 @@ export class PacketRecording {
     catch { this.status.reason = "storage-error"; }
     return this.snapshot();
   }
-  async archive() {
-    if (this.status.active) throw new Error("Stop recording before saving the archive.");
-    if (!this.directory || this.status.saving || this.status.archive) return;
-    this.status.saving = true;
-    const output = `${this.directory}.zip`;
+  async maintain(action: "optimize" | "clear") {
+    if (this.status.maintenance) throw new Error("Recording maintenance is already running.");
+    this.status.maintenance = action; this.status.message = undefined;
     try {
-      const command = 'Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::CreateFromDirectory($env:MVP_RECORDING_SOURCE, $env:MVP_RECORDING_ZIP, [IO.Compression.CompressionLevel]::Fastest, $false)';
-      const child = Bun.spawn(["powershell.exe", "-NoProfile", "-Command", command], { env: { ...process.env, MVP_RECORDING_SOURCE: this.directory, MVP_RECORDING_ZIP: output }, stdin: "ignore", stdout: "ignore", stderr: "pipe", windowsHide: true });
-      const stderr = await new Response(child.stderr).text();
-      const exit = await child.exited;
-      if (exit) throw new Error(`Archive failed (${exit}): ${stderr.slice(-8192)}`);
-      this.status.archive = basename(output);
-    } catch (error) {
-      this.status.reason = "archive-error";
-      try { this.onFailure(error); } catch {}
-      try { writeFileSync(join(this.directory, "archive-error.json"), json({ operation: "archive", error }) + "\n"); } catch {}
-    }
-    finally { this.status.saving = false; }
+      const worker = join(import.meta.dir, import.meta.path.endsWith(".ts") ? "recording-worker.ts" : "recording-worker.js");
+      const child = Bun.spawn([process.execPath, worker, action, this.logsRoot, this.status.active ? this.status.session! : ""], { stdin: "ignore", stdout: "pipe", stderr: "pipe", windowsHide: true });
+      const [out, error, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+      if (exit) throw new Error("Recording maintenance failed: " + error.slice(-1024));
+      const report = JSON.parse(out) as import("./recording-files").RecordingReport;
+      this.status.message = (action === "clear" ? "Cleared " : "Optimized ") + report.processed + " · skipped " + report.skipped + " · failed " + report.failed + (report.errors[0] ? ". " + report.errors[0].reason : ".");
+      if (action === "clear" && !this.status.active) this.status.session = undefined;
+      return report;
+    } catch (error) { this.status.message = (error as Error).message; try { this.onFailure(error); } catch {} throw error; }
+    finally { this.status.maintenance = undefined; }
   }
 }

@@ -11,4 +11,4 @@ export function freshnessBand(gatheredAt: number | undefined, now: number, statu
 }
 export function rowRevision(slot: TimerSlot, _status?: TimerStatus): number | undefined { return slot.observation?.gatheredAt; }
 export function shouldAnimateGathered(previous: number | undefined, current: number | undefined): boolean { return current !== undefined && previous !== current; }
-export const ROW_ANIMATION_MS = 3000;
+export const ROW_ANIMATION_MS = 4000;

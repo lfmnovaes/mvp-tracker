@@ -11,7 +11,7 @@ import { parseDataset } from "../domain/sync";
 import type { Dataset } from "./sharing";
 import { COLOR_INTERVALS, DEFAULT_COLOR_INTERVAL } from "./colors";
 import { SYNC_INTERVALS } from "./sync-intervals";
-export const VERSION = "0.1.9.5";
+export const VERSION = "0.1.9.6";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";
@@ -69,7 +69,7 @@ export interface Snapshot {
   sync?: SyncStatus;
 }
 export interface Operations {
-  monitor: { input: "start" | "stop" | "open" | "mark"; output: Snapshot };
+  monitor: { input: "start" | "stop" | "open" | "optimize" | "clear"; output: Snapshot };
   pruneOutdated: { input: null; output: SyncStatus };
   syncControl: { input: "now" | "start" | "stop"; output: SyncStatus };
   syncInterval: { input: number; output: Snapshot };
@@ -115,7 +115,7 @@ export function parseRequest(raw: unknown): Request {
     case "snapshot": case "clipboardRead": case "captureRestart": if (r.input !== null) throw new Error("Invalid request."); break;
     case "saveSettings": return { ...r, input: parseSettings(r.input) };
     case "saveManual": return { ...r, input: parseManualRequest(r.input) };
-    case "monitor": if (!["start", "stop", "open", "mark"].includes(r.input)) throw new Error("Invalid monitor action."); break;
+    case "monitor": if (!["start", "stop", "open", "optimize", "clear"].includes(r.input)) throw new Error("Invalid monitor action."); break;
     case "diagnostics": if (!["open", "clear", "copy", "start", "stop"].includes(r.input)) throw new Error("Invalid diagnostics action."); break;
     case "shell": if (!["show", "hide", "minimize", "exit", "add", "sync"].includes(r.input)) throw new Error("Invalid action."); break;
     case "clipboardWrite": if (typeof r.input !== "string" || r.input.length > 1_000_000) throw new Error("Clipboard input is too large."); break;

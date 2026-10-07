@@ -17,7 +17,7 @@ test("gathered freshness uses observation age, clamps clock skew and overrides e
   expect(freshnessBand(undefined, gathered, "empty")).toBe(10);
 });
 
-test("only gathered-time changes trigger the three-second highlight", () => {
+test("only gathered-time changes trigger the four-second highlight", () => {
   const slot: TimerSlot = { mobId: "NightmarePaladinBoss", region: "sa", channel: 1, outdated: false,
     observation: { mobId: "NightmarePaladinBoss", region: "sa", channel: 1, observationId: "one", diedAt: 1000, gatheredAt: 2000, source: "manual", timePrecision: "second" } };
   const initial = rowRevision(slot, "waiting");
@@ -29,7 +29,7 @@ test("only gathered-time changes trigger the three-second highlight", () => {
   expect(shouldAnimateGathered(initial, 2001)).toBe(true);
   expect(shouldAnimateGathered(initial, undefined)).toBe(false);
   expect(shouldAnimateGathered(undefined, 2000)).toBe(true);
-  expect(ROW_ANIMATION_MS).toBe(3000);
+  expect(ROW_ANIMATION_MS).toBe(4000);
 });
 
 test("color settings migrate to three minutes and retain valid saved choices", () => {

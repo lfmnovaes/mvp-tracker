@@ -1,14 +1,15 @@
 # Changelog
 
-## 0.1.9.5 — Unreleased
+## 0.1.9.6
 
-- Incorporated the required capture/decoder source into src/spiritvale and removed all kar-mi package dependencies.
-- Corrected public build 25647861 channel decoding from RPC ID 35 to 38; obsolete IDs no longer supply channel context.
-- Added opt-in Monitor all with raw PCAP, decoder/attribution traces, encounter markers, bounded health samples and ZIP export.
-- Added offline recording analysis and reproducible public-build RPC inspection.
-- Added capture/recording regressions for filtering, restarts, limits, storage failures and malformed PCAP.
-
-Release held pending live capture confirmation.
+- Fixed current-game gravestone capture and maintained the capture/decoder locally; removed kar-mi package dependencies.
+- Ordered location filters by map level, highest first.
+- Highlighted new and updated observations for four seconds.
+- Added Clear recordings and Optimize all recordings; stopped sessions become filtered `_clean.zip` files only when optimized.
+- Removed encounter markers and automatic recording ZIP creation.
+- Updated Preact 11, Neutralino 6.10, its CLI, Vitest and Node 24 typings.
+- Added rendered UI and recording regressions; removed unused decoder wrappers and unrelated legacy tests.
+- Consolidated documentation and simplified release downloads while retaining required runtime files and licenses.
 
 ## 0.1.9.4
 
@@ -44,8 +45,6 @@ Release held pending live capture confirmation.
 - Separate Hotkeys, Capture and Diagnostics settings.
 - Add safe capture/error reasons and exception context to logs.
 - Split runtime and corresponding source downloads, verifying both in CI.
-- Consolidate docs and the plan; collect pending acceptance/UX tests in Step 10.
-- Audit database fields and document coordinate/live-boss feature proposals.
 
 ## 0.1.8.2
 - Add Windows CI and manual dry runs; tagged builds prepare draft releases.
@@ -60,4 +59,4 @@ Release held pending live capture confirmation.
 ## 0.1.8
 - Add sanitized structured diagnostics and automated portable inspection.
 
-Earlier steps delivered capture, timer editing/import/export, Convex sync and outdated cleanup. See docs/plan.md; detailed historical reports remain in Git history.
+Earlier versions added capture, timer editing/import/export, shared sync and outdated cleanup.

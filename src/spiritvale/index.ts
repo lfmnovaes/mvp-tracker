@@ -1,5 +1,5 @@
 // Local capture/protocol API. See README.md for source provenance and maintenance.
-export { FishNetSessionDecoder, FishNetProtocolError, decodeFishNetPayload, decodeFishNetBundle } from "./fishnet/decoding/decoder";
+export { FishNetSessionDecoder, FishNetProtocolError } from "./fishnet/decoding/decoder";
 export { loadBundledFishNetRpcMap } from "./fishnet/mapping/bundled-rpc-map";
 export { decodeBossGravestone, type BossGravestone } from "./fishnet/tracking/boss-gravestone";
 export { FishNetTransportReplay } from "./fishnet/replay";

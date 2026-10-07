@@ -44,3 +44,10 @@ test("obsolete channel IDs never produce current server/channel context", () => 
   expect(decoded[1]?.rpcName).toBeUndefined();
   expect(decoded[1]?.decodedFields).toBeUndefined();
 });
+
+test("current and historical protocol profiles keep distinct channel IDs and immutable cached maps", () => {
+  const current = loadBundledFishNetRpcMap(), legacy = loadBundledFishNetRpcMap("ce04a28c94ea82848b85c29d2867d2c9061a8972b998b30e898fcb3f65a166ba");
+  const channel = (map: typeof current) => map.behaviours.find(b => b.typeName === "PlayerController")?.rpcs.find(r => r.methodName === "ChannelList_T")?.wireHash;
+  expect(channel(current)).toBe(38); expect(channel(legacy)).toBe(35); expect(loadBundledFishNetRpcMap()).toBe(current);
+  expect(() => loadBundledFishNetRpcMap("unknown-build")).toThrow("unsupported");
+});

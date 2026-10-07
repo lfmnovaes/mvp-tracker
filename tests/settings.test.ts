@@ -51,7 +51,7 @@ test("invalid request bodies retain a safe reply ID and clearing logs preserves 
   const root = temporary(), log = new Logger(root); log.write("started"); writeFileSync(join(root, "keep.txt"), "unrelated");
   log.clear(); expect(readdirSync(root)).toEqual(["keep.txt"]); log.write("started"); expect(log.recent()).toHaveLength(1);
 });
-test("logs rotate at their byte cap, retain five files and prune old logs", () => {
+test("logs rotate at their byte cap, retain five files and prune old logs", async () => {
   const root = temporary(); const log = new Logger(root, 150, 5, 1000);
   for (let i = 0; i < 30; i++) log.write("started");
   expect(readdirSync(root).length).toBe(5);
@@ -60,5 +60,9 @@ test("logs rotate at their byte cap, retain five files and prune old logs", () =
     for (const line of text.trim().split("\n")) expect(Object.keys(JSON.parse(line))).toEqual(["time", "event", "version", "level"]);
     utimesSync(join(root, file), new Date(0), new Date(0));
   }
-  log.write("started"); expect(readdirSync(root)).toEqual(["mvp-tracker.log"]);
+  log.write("started");
+  // Windows may defer an unlink while a directory/antivirus handle remains open.
+  const deadline = Date.now() + 500;
+  while (readdirSync(root).some(name => /^mvp-tracker(?:\.\d+)?\.log\.tmp$/i.test(name)) && Date.now() < deadline) await Bun.sleep(10);
+  expect(readdirSync(root)).toEqual(["mvp-tracker.log"]);
 });

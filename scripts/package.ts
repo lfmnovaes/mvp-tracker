@@ -17,14 +17,14 @@ await rm(target, { recursive: true, force: true });
 await mkdir(target, { recursive: true });
 await copyFile(join(root, "dist/mvp-tracker/mvp-tracker-win_x64.exe"), join(target, "MVP Tracker.exe"));
 await copyFile(join(root, "dist/mvp-tracker/resources.neu"), join(target, "resources.neu"));
-for (const file of ["bin/bun.exe", "bin/mvp-shell.exe", "bin/icon.ico", "backend/index.js"]) {
+for (const file of ["bin/bun.exe", "bin/mvp-shell.exe", "bin/icon.ico", "backend/index.js", "backend/recording-worker.js"]) {
   await mkdir(join(target, "extensions", file.split("/")[0]!), { recursive: true });
   await copyFile(join(root, "extensions", file), join(target, "extensions", file));
 }
 await copyFile(join(root, "LICENSE.txt"), join(target, "LICENSE.txt"));
 const sourceName = `MVP-Tracker-${VERSION}-source`;
 const sourceLink = `https://github.com/lfmnovaes/mvp-tracker/releases/tag/app-v${VERSION}`;
-await writeFile(join(target, "NOTICE.txt"), await Bun.file(join(root, "THIRD_PARTY_NOTICES.md")).text() + `\nCorresponding source: download ${sourceName}.zip from ${sourceLink}\n`);
+await writeFile(join(target, "NOTICE.txt"), (await Bun.file(join(root, "docs/overview.md")).text()).split("## Third-party attribution\n")[1]! + `\nCorresponding source: download ${sourceName}.zip from ${sourceLink}\n`);
 await writeFile(join(target, "HELP.txt"), `MVP Tracker ${VERSION}\nExtract the entire ZIP to a writable folder and run MVP Tracker.exe.\nWindows 11 x64. Install Npcap and Microsoft Edge WebView2 if missing.\nClose hides to tray; use the tray menu to exit. Data and logs stay beside the executable.\nKeep extensions and licenses: they are required runtime files and notices.\nHelp and corresponding source: ${sourceLink}\nDownload ${sourceName}.zip for source, build instructions, and documentation.\n`);
 await cp(join(root, "resources/licenses"), join(target, "licenses"), { recursive: true });
 for (const name of await readdir(join(target, "licenses"))) if (name.endsWith(".md")) await rename(join(target, "licenses", name), join(target, "licenses", name.replace(/\.md$/, ".txt")));
@@ -33,7 +33,7 @@ if (!source.startsWith(release + sep)) throw new Error("Unsafe source package pa
 for (const name of ["data", "logs"]) if (await access(join(source, name)).then(() => true, () => false)) throw new Error("Source staging contains user state.");
 await rm(source, { recursive: true, force: true }); await mkdir(source, { recursive: true });
 // Matching corresponding source is a separate release download.
-for (const file of ["src", "native", "scripts", "tests", "docs", "licenses", "convex", ".github", "vitest.config.ts", ".env.local.sample", ".gitignore", ".gitattributes", "package.json", "bun.lock", "tsconfig.json", "neutralino.config.json", "README.md", "LICENSE.txt", "THIRD_PARTY_NOTICES.md", "dependency-provenance.md", "CHANGELOG.md"]) await cp(join(root, file), join(source, file), { recursive: true });
+for (const file of ["src", "native", "scripts", "tests", "docs", "licenses", "convex", ".github", "vitest.config.ts", ".env.local.sample", ".gitignore", ".gitattributes", "package.json", "bun.lock", "tsconfig.json", "neutralino.config.json", "README.md", "LICENSE.txt"]) await cp(join(root, file), join(source, file), { recursive: true });
 const metadata = await Bun.file(join(root, "package.json")).json();
 const config = await Bun.file(join(root, "neutralino.config.json")).json();
 const git = (args: string[]) => { const p = Bun.spawnSync(["git", "-c", `safe.directory=${root}`, ...args], { cwd: root, stdout: "pipe", stderr: "pipe", windowsHide: true }); return p.exitCode === 0 ? p.stdout.toString().trim() : null; };
@@ -52,5 +52,8 @@ for (const folder of [target, source]) {
 const checksums: string[] = [];
 for (const file of [zip, `${source}.zip`, manifestFile]) checksums.push(`${createHash("sha256").update(new Uint8Array(await Bun.file(file).arrayBuffer())).digest("hex")}  ${file.slice(release.length + 1)}`);
 await writeFile(`${target}.sha256`, checksums.join("\n") + "\n");
-await copyFile(join(root, "docs", "release-notes.md"), join(release, "RELEASE-NOTES.md"));
+const changelog = await Bun.file(join(root, "docs/CHANGELOG.md")).text();
+const section = changelog.split(`## ${VERSION}\n`)[1]?.split("\n## ")[0]?.trim();
+if (!section) throw new Error("Current release changelog is missing.");
+await writeFile(join(release, "RELEASE-NOTES.md"), "## What's changed\n\n" + section + "\n");
 console.log(`Portable package: ${zip}`);

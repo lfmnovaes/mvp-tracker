@@ -3,7 +3,7 @@ import { STATUS_LABELS, type TimerRow } from "../domain/query";
 import { formatClock, formatTimestamp, ELIGIBLE_AFTER, SPAWN_AFTER } from "../domain/time";
 import type { TimerSlot } from "../domain/timers";
 import { FRESHNESS_COLORS, freshnessBand, rowRevision, coordinateLabel, shouldAnimateGathered, ROW_ANIMATION_MS } from "./timer-presentation";
-export function TimerRowView({ row: { slot, boss, status }, now, clock24, colorInterval, onEdit, onRemove }: { row: TimerRow; now: number; clock24: boolean; colorInterval: number; onEdit: (slot: TimerSlot) => void; onRemove: (slot: TimerSlot) => Promise<void> }) {
+export function TimerRowView({ row: { slot, boss, status }, now, clock24, colorInterval, onEdit, onRemove, animateOnMount = true }: { animateOnMount?: boolean; row: TimerRow; now: number; clock24: boolean; colorInterval: number; onEdit: (slot: TimerSlot) => void; onRemove: (slot: TimerSlot) => Promise<void> }) {
   const [expanded, setExpanded] = useState(false);
   const [removing, setRemoving] = useState(false);
   const remove = async () => { if (removing) return; setRemoving(true); try { await onRemove(slot); } finally { setRemoving(false); } };
@@ -11,7 +11,7 @@ export function TimerRowView({ row: { slot, boss, status }, now, clock24, colorI
   const id = `details-${slot.mobId}-${slot.region}-${slot.channel}`;
   const element = useRef<HTMLTableRowElement>(null);
   const revision = rowRevision(slot, status);
-  const previousGathered = useRef(revision);
+  const previousGathered = useRef<number | undefined>(animateOnMount ? undefined : revision);
   useLayoutEffect(() => {
     const changed = shouldAnimateGathered(previousGathered.current, revision); previousGathered.current = revision;
     if (!changed) return;

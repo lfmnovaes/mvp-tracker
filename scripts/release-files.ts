@@ -7,8 +7,8 @@ export function allowedReleasePath(path: string, source = false): boolean {
   if (source && path === ".env.local.sample") return true;
   if (/(^|\/)(data|logs|node_modules|research|\.git|\.convex|\.tmp)(\/|$)|\.env|secrets|\.tmp$|\.log$/i.test(path)) return false;
   if (source) return /^(src|native|scripts|tests|docs|licenses|convex|\.github)\//.test(path) && !/\.(exe|dll|so|dylib|zip)$/i.test(path)
-    || /^(vitest.config.ts|\.gitignore|\.gitattributes|package.json|bun.lock|tsconfig.json|neutralino.config.json|README.md|LICENSE.txt|THIRD_PARTY_NOTICES.md|dependency-provenance.md|CHANGELOG.md)$/.test(path);
-  return ["MVP Tracker.exe", "resources.neu", "LICENSE.txt", "NOTICE.txt", "HELP.txt", "release-manifest.json", "extensions/bin/bun.exe", "extensions/bin/mvp-shell.exe", "extensions/bin/icon.ico", "extensions/backend/index.js"].includes(path)
+    || /^(vitest.config.ts|\.gitignore|\.gitattributes|package.json|bun.lock|tsconfig.json|neutralino.config.json|README.md|LICENSE.txt)$/.test(path);
+  return ["MVP Tracker.exe", "resources.neu", "LICENSE.txt", "NOTICE.txt", "HELP.txt", "release-manifest.json", "extensions/bin/bun.exe", "extensions/bin/mvp-shell.exe", "extensions/bin/icon.ico", "extensions/backend/index.js", "extensions/backend/recording-worker.js"].includes(path)
     || /^licenses\//.test(path) && !/\.(exe|dll|so|dylib|zip|md)$/i.test(path);
 }
 export async function inventory(root: string, relative = "", source = false): Promise<{ path: string; bytes: number; sha256: string }[]> {

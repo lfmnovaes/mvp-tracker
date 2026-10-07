@@ -18,7 +18,7 @@ try {
     $relative = $name.Substring($prefix.Length)
     if ($relative.EndsWith('/') -or !$relative) { continue }
     if ($files.ContainsKey($relative)) { throw 'Duplicate archive entry.' }
-    if ($relative -notin @('MVP Tracker.exe','resources.neu','LICENSE.txt','NOTICE.txt','HELP.txt','release-manifest.json','extensions/bin/bun.exe','extensions/bin/mvp-shell.exe','extensions/bin/icon.ico','extensions/backend/index.js') -and $relative -notmatch '^licenses/[^/]+$') { throw 'Unexpected runtime file.' }
+    if ($relative -notin @('MVP Tracker.exe','resources.neu','LICENSE.txt','NOTICE.txt','HELP.txt','release-manifest.json','extensions/bin/bun.exe','extensions/bin/mvp-shell.exe','extensions/bin/icon.ico','extensions/backend/index.js','extensions/backend/recording-worker.js') -and $relative -notmatch '^licenses/[^/]+$') { throw 'Unexpected runtime file.' }
     if ($relative -match '\.md$') { throw 'Markdown found in runtime archive.' }
     if ($relative -match '(^|/)(data|logs|node_modules|research|\.git|\.convex|\.tmp)(/|$)|sharing-secrets|\.env' -and $relative -notin @('source/.env.local.sample','.env.local.sample')) { throw 'Local state or configuration found in archive.' }
     $files[$relative] = $entry
@@ -37,7 +37,7 @@ try {
     if ($files.ContainsKey('source/' + $relative)) { throw 'Duplicate source archive entry.' }
     $files['source/' + $relative] = $entry
   }
-  $required = @('MVP Tracker.exe','resources.neu','extensions/bin/bun.exe','extensions/bin/mvp-shell.exe','extensions/bin/icon.ico','extensions/backend/index.js','HELP.txt','LICENSE.txt','NOTICE.txt','source/package.json','source/bun.lock','source/neutralino.config.json','source/src/shared/protocol.ts','source/convex/schema.ts','source/convex/timers.ts','source/.env.local.sample','source/docs/plan.md','source/docs/testing.md','source/.github/workflows/windows.yml')
+  $required = @('MVP Tracker.exe','resources.neu','extensions/bin/bun.exe','extensions/bin/mvp-shell.exe','extensions/bin/icon.ico','extensions/backend/index.js','extensions/backend/recording-worker.js','HELP.txt','LICENSE.txt','NOTICE.txt','source/package.json','source/bun.lock','source/neutralino.config.json','source/src/shared/protocol.ts','source/convex/schema.ts','source/convex/timers.ts','source/.env.local.sample','source/docs/overview.md','source/docs/CHANGELOG.md','source/docs/diagnostics.md','source/docs/releases.md','source/.github/workflows/windows.yml')
   foreach ($file in $required) { if (!$files.ContainsKey($file) -or $files[$file].Length -eq 0) { throw ('Required file missing: ' + $file) } }
   $readme = Read-Text $files['source/README.md']
   foreach ($link in [regex]::Matches($readme, '\]\(([^)#]+)(?:#[^)]*)?\)')) {
