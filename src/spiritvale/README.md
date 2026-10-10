@@ -8,6 +8,6 @@ Copyright (C) kar-mi and contributors; (C) 2026 Luis Fernando for local changes.
 
 Only grave timers, coordinates and identity feed the app. Historical generated layouts support wire boundaries and fixtures; combat/reward collectors do not run. Unknown packets are available in opt-in recordings.
 
-Current public build: **25647861**; GameAssembly SHA-256 `6202eb64513ca6f5d338dbd44b500a3201157d99f8e7b572364e60a224654c8b`. ChannelList_T uses **38**, not 35. Prefab/SyncType layouts retain the September 21 baseline; capture was confirmed in game. Historical source-manifest fingerprints are explicit test profiles, not game binary hashes or automatic fallbacks.
+Current public build: **25832491**; GameAssembly SHA-256 `f6842a80628ed034657b2eb083cdba9631609954262b1607477740f493b5850b`. ChannelList_T still uses **38**, with a new trailing packed `pvpIndex`. PlayerSave adds float32 `ArenaPeakRating` at SyncVar index 2. Other prefab/SyncType layouts retain the reviewed baseline. Profiles/evidence for public build 25647861 remain explicitly available for historical analysis. Historical source-manifest fingerprints are explicit test profiles, not game binary hashes or automatic fallbacks.
 
 [Recording and maintenance guide](../../docs/diagnostics.md). Verify future public builds with `scripts/inspect-game-rpcs.py` and add wire-level regressions.

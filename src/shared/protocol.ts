@@ -11,7 +11,7 @@ import { parseDataset } from "../domain/sync";
 import type { Dataset } from "./sharing";
 import { COLOR_INTERVALS, DEFAULT_COLOR_INTERVAL } from "./colors";
 import { SYNC_INTERVALS } from "./sync-intervals";
-export const VERSION = "0.1.9.6";
+export const VERSION = "0.1.9.7";
 export const EXTENSION = "dev.lfmnovaes.backend";
 export const REQUEST = "mvp:request";
 export const RESPONSE = "mvp:response";

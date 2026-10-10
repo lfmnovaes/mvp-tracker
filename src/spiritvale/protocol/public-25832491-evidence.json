@@ -1,0 +1,136 @@
+{
+  "buildId": "25832491",
+  "branch": "public",
+  "gameAssemblySha256": "f6842a80628ed034657b2eb083cdba9631609954262b1607477740f493b5850b",
+  "metadataVersion": 31,
+  "verifiedRpcs": [
+    {
+      "typeName": "BaseUnitController",
+      "methodName": "TraverseActive",
+      "wireHash": 4,
+      "packetKind": "targetRpc",
+      "writerRva": "0x6c8390",
+      "sendRva": "0xb57cd0"
+    },
+    {
+      "typeName": "PlayerController",
+      "methodName": "ChannelList_T",
+      "wireHash": 38,
+      "packetKind": "targetRpc",
+      "writerRva": "0x8e98d0",
+      "sendRva": "0xb57cd0"
+    },
+    {
+      "typeName": "PlayerSave",
+      "methodName": "QuitCharacter_Rpc",
+      "wireHash": 12,
+      "packetKind": "serverRpc",
+      "writerRva": "0x923dd0",
+      "sendRva": "0xb57b90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversSetSendToOwner",
+      "wireHash": 0,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb917c0",
+      "sendRva": "0xb577c0"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ServerSetInterval",
+      "wireHash": 1,
+      "packetKind": "serverRpc",
+      "writerRva": "0xb93220",
+      "sendRva": "0xb57b90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversSetInterval",
+      "wireHash": 2,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb93130",
+      "sendRva": "0xb577c0"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "TargetUpdateTransform",
+      "wireHash": 3,
+      "packetKind": "targetRpc",
+      "writerRva": "0xb935b0",
+      "sendRva": "0xb57cd0"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversUpdateClientAuthoritativeTransform",
+      "wireHash": 4,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb919a0",
+      "sendRva": "0xb577c0"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ServerUpdateTransform",
+      "wireHash": 5,
+      "packetKind": "serverRpc",
+      "writerRva": "0xb93460",
+      "sendRva": "0xb57b90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ServerSetSynchronizedProperties",
+      "wireHash": 6,
+      "packetKind": "serverRpc",
+      "writerRva": "0xb93340",
+      "sendRva": "0xb57b90"
+    },
+    {
+      "typeName": "NetworkTransform",
+      "methodName": "ObserversSetSynchronizedProperties",
+      "wireHash": 7,
+      "packetKind": "observersRpc",
+      "writerRva": "0xb918b0",
+      "sendRva": "0xb577c0"
+    }
+  ],
+  "verifiedLayouts": [
+    {
+      "typeName": "PlayerController",
+      "methodName": "ChannelList_T",
+      "addedParameter": {
+        "name": "pvpIndex",
+        "typeName": "System.Int32",
+        "codec": "packedInt32",
+        "position": 3
+      },
+      "writerRva": "0x8e98d0",
+      "writeCallRva": "0xb493a0",
+      "note": "pvpIndex uses the same packed signed writer as currentIndex, after instanceId."
+    },
+    {
+      "typeName": "PlayerSave",
+      "addedSyncType": {
+        "index": 2,
+        "name": "ArenaPeakRating",
+        "typeName": "System.Single",
+        "codec": "float32"
+      },
+      "initializerRva": "0x91fc80",
+      "fieldOffset": "0x2b8",
+      "initializeCallRva": "0xb83660"
+    },
+    {
+      "typeName": "BossGraveStone",
+      "syncIndex": 0,
+      "name": "_killInfo",
+      "initializerRva": "0x7f0670",
+      "fieldOrder": [
+        "KillTime",
+        "KillerName",
+        "BossName",
+        "BossId"
+      ],
+      "note": "BossKillInfo field names/types and grave SyncVar index are unchanged."
+    }
+  ]
+}

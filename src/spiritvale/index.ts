@@ -5,5 +5,5 @@ export { decodeBossGravestone, type BossGravestone } from "./fishnet/tracking/bo
 export { FishNetTransportReplay } from "./fishnet/replay";
 export type { CapturedFishNetPacket } from "./fishnet/types";
 export type { CaptureConfig, CaptureTargetStatus, CaptureConnectionEvent, CapturedTransportPacket } from "./types";
-export const CAPTURE_REVISION = "local-1";
+export const CAPTURE_REVISION = "local-2";
 export { CURRENT_GAME_BUILD_FINGERPRINT } from "./game-build";

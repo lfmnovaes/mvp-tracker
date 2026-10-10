@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.9.7
+
+- Fixed gravestone tracking for Spirit Vale public build 25832491 by updating the channel packet and PlayerSave layouts.
+- Added map levels to every location filter option, preserving sorting and filter values.
+- Added regression tests for the new packet layouts, malformed channel payloads and location selection.
+
 ## 0.1.9.6
 
 - Fixed current-game gravestone capture and maintained the capture/decoder locally; removed kar-mi package dependencies.

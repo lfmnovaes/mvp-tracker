@@ -1,3 +1,6 @@
+import { LocationFilter } from "../src/ui/location-filter";
+import { selectedLocations, bossPreset } from "../src/domain/catalog";
+import { MAP_LEVELS } from "../src/domain/map-levels";
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import { Window } from "happy-dom";
 import { render } from "preact";
@@ -78,4 +81,22 @@ test("background recording status blocks duplicate jobs and reports completion o
   await act(draw); expect(messages).toEqual(["Optimized 2"]);
   await act(draw); expect(messages).toHaveLength(1);
   expect((host.querySelectorAll("button")[1] as HTMLButtonElement).disabled).toBe(false);
+});
+
+test("location labels show every map level while selected values remain raw map names", async () => {
+  host = document.createElement("div"); document.body.append(host);
+  const locations = selectedLocations({ bossIds: bossPreset("all"), regions: ["sa"] }), changes: string[] = [];
+  await act(() => render(<LocationFilter locations={locations} value="Dark Fortress" onChange={value => changes.push(value)}/>, host));
+  const select = host.querySelector("select")!;
+  expect(select.value).toBe("Dark Fortress");
+  expect(select.options[1]!.textContent).toBe("Dark Fortress (150)");
+  expect(select.options[2]!.textContent).toBe("Dark Manor (145)");
+  for (const [index, map] of locations.entries()) {
+    expect(select.options[index + 1]!.value).toBe(map);
+    expect(select.options[index + 1]!.textContent).toBe(map + " (" + MAP_LEVELS[map] + ")");
+  }
+  await act(() => { select.value = "Dark Manor"; select.dispatchEvent(new browser.Event("change", { bubbles: true }) as unknown as Event); });
+  expect(changes).toEqual(["Dark Manor"]);
+  await act(() => { select.value = ""; select.dispatchEvent(new browser.Event("change", { bubbles: true }) as unknown as Event); });
+  expect(changes.at(-1)).toBe("");
 });

@@ -4,7 +4,7 @@ MVP Tracker is a portable Windows 11 x64 application focused on Spirit Vale boss
 
 ## Behavior
 
-- Tracking settings control the table, filters, manual entry and clipboard selections. Location filters sort by map minimum level, highest first.
+- Tracking settings control the table, filters, manual entry and clipboard selections. Location filters show map minimum levels in parentheses and sort highest first.
 - Kill evidence gives a 60–90 minute spawn window and expires after 150 minutes. Silence or an object despawn is not evidence of a new kill. Newer gathered evidence wins during merge.
 - Manual edits set the kill time and gather time at confirmation. Names are optional. UTC timestamps are displayed in America/Sao_Paulo; 24-hour time is the default.
 - Gathered-time changes and new rows highlight for four seconds. Ten freshness colors use a configurable interval, default three minutes.
@@ -42,7 +42,7 @@ npx convex dev --configure --dev-deployment cloud --once
 
 Choose the intended cloud development deployment. Keep the CLI-generated `.env.local`: `CONVEX_DEPLOYMENT` selects it, and `CONVEX_URL` provides the URL to copy. `CONVEX_SITE_URL` is unused. [The empty sample](../.env.local.sample) is a reference, not a replacement for an existing configuration.
 
-After backend changes, the owner runs `npx convex dev --once`. Ordinary app launches require neither command. Upgrades from before 0.1.9.2 require deployment and matching clients; 0.1.9.6 needs no further deployment after that upgrade.
+After backend changes, the owner runs `npx convex dev --once`. Ordinary app launches require neither command. Upgrades from before 0.1.9.2 require deployment and matching clients; 0.1.9.7 needs no further deployment after that upgrade.
 
 **Reset database** confirms before clearing shared tracker data; schema/function deployment still requires the CLI. Automatic sync starts stopped each launch, with intervals of 5/10/20/30 seconds or 1/2 minutes. Manual sync and interval changes remain available; overlapping requests coalesce and failures back off.
 
