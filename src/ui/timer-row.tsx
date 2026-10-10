@@ -24,7 +24,7 @@ export function TimerRowView({ row: { slot, boss, status }, now, clock24, colorI
     ], { duration: ROW_ANIMATION_MS, easing: "ease-out" });
     return () => animation?.cancel();
   }, [revision]);
-  return <><tr ref={element}><td>{boss.name}</td><td>{boss.level}</td><td>{boss.map}</td><td>{slot.region.toUpperCase()}</td><td>{slot.channel}</td>
+  return <><tr ref={element}><td>{boss.name}</td><td>{boss.level}</td><td>{boss.map}</td><td>{slot.region.toUpperCase()}</td><td title={slot.pvp ? "PvP channel" : undefined}>{slot.channel}{slot.pvp && <small class="pvp-label">PvP</small>}</td>
     <td class="coordinates" title={o?.position ? "Experimental ground coordinates: X = world X, Y = world Z. Not a calibrated game-map grid." : "No reliable position was included with this observation. The timer is still usable."}>{coordinateLabel(o?.position)}</td>
     <td><span class={`timer-status ${status}`}>{STATUS_LABELS[status]}</span>{o && <small class="spawn-range">{`${formatClock(o.diedAt! + ELIGIBLE_AFTER, clock24)} – ${formatClock(o.diedAt! + SPAWN_AFTER, clock24)}`}</small>}</td>
     <td class="gathered-time" style={{ color: FRESHNESS_COLORS[freshnessBand(o?.gatheredAt, now, status, colorInterval)] }} title={o ? `${formatTimestamp(o.gatheredAt, clock24)} · ${Math.max(0, Math.floor((now - o.gatheredAt) / 60000))} min ago` : status === "outdated" ? "Outdated observation discarded" : undefined}>{o ? formatClock(o.gatheredAt, clock24, true) : status === "outdated" ? "—" : ""}</td><td>{o?.killedBy ?? ""}</td>

@@ -58,7 +58,7 @@ export class FishNetSessionDecoder {
   private getConnection(key: string): ConnectionState {
     let state = this.connections.get(key);
     if (!state) {
-      state = { links: new Map(), components: new Map(), staleLinks: new Map(), staleComponents: new Map() };
+      state = { links: new Map(), components: new Map(), staleLinks: new Map(), staleComponents: new Map(), pendingSync: new Map() };
       this.connections.set(key, state);
     }
     return state;
@@ -141,10 +141,24 @@ export class FishNetSessionDecoder {
     options: FishNetDecodeOptions,
   ): DecodedFishNetPacket[] {
     const packets: DecodedFishNetPacket[] = [];
+    const capturedAt = options.capturedAt ?? Date.now();
+    for (const [key, entry] of state.pendingSync) if (capturedAt - entry.at > 2000 || capturedAt < entry.at) state.pendingSync.delete(key);
     let offset = start;
     while (buffer.length - offset >= 2) {
       const parsed = parseMessage(buffer, offset, tick, packets.length, state, options);
       packets.push(parsed.packet);
+      const packet = parsed.packet;
+      // Capture sees arrival order, whereas the client processes reliable delivery order.
+      // Keep tiny unresolved inbound updates briefly; only a confirmed grave spawn may retry them.
+      if (options.direction === "inbound" && packet.packetName === "syncType" && !packet.networkBehaviourType
+        && packet.objectId !== undefined && packet.networkBehaviourIndex !== undefined && packet.syncPayload?.length
+        && packet.raw.length <= 4096) {
+        const key = `${packet.objectId}:${packet.networkBehaviourIndex}`;
+        const previous = state.pendingSync.get(key);
+        if (!previous?.raw.equals(packet.raw)) state.pendingSync.set(key, { objectId: packet.objectId, raw: Buffer.from(packet.raw), tick: packet.tick, at: capturedAt });
+        while (state.pendingSync.size > 128) state.pendingSync.delete(state.pendingSync.keys().next().value!);
+      }
+      if (packet.rpcName === "TraverseActive" || packet.rpcName === "QuitCharacter_Rpc") state.pendingSync.clear();
 
       if (parsed.packet.packetName === "authenticated") {
         quarantineConnectionState(state);
@@ -166,7 +180,17 @@ export class FishNetSessionDecoder {
           state.staleLinks.delete(linkId);
         }
       }
+      if (packet.packetName === "objectSpawn" && packet.objectId !== undefined && options.direction === "inbound") {
+        for (const [key, entry] of state.pendingSync) {
+          if (entry.objectId !== packet.objectId) continue;
+          state.pendingSync.delete(key);
+          if (state.components.get(key) !== "BossGraveStone" || capturedAt - entry.at > 2000 || capturedAt < entry.at) continue;
+          const recovered = parseMessage(entry.raw, 0, entry.tick, packets.length, state, options).packet;
+          if (recovered.syncEntries && !recovered.undecodedPayload) packets.push({ ...recovered, deferredCapturedAt: entry.at });
+        }
+      }
       if (parsed.packet.packetName === "objectDespawn" && parsed.packet.objectId !== undefined) {
+        for (const [key, entry] of state.pendingSync) if (entry.objectId === parsed.packet.objectId) state.pendingSync.delete(key);
         removeObjectLinks(state, parsed.packet.objectId);
         removeObjectComponents(state, parsed.packet.objectId);
       }
@@ -216,6 +240,7 @@ function orderedChunks(chunks: { sequence?: number; chunk: Buffer }[]): Buffer[]
  * against trusting a quarantined entry whose link id has since been reallocated.
  */
 function quarantineConnectionState(state: ConnectionState): void {
+  state.pendingSync.clear();
   for (const [linkId, registration] of state.links) {
     state.staleLinks.set(linkId, registration);
   }

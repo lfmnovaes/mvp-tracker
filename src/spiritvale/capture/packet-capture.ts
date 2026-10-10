@@ -363,6 +363,7 @@ export class PacketCapture extends EventEmitter {
         rpcMap: this.fishNetRpcMap,
         connectionId,
         direction: udp.direction,
+        capturedAt: udp.capturedAt.getTime(),
         channel: property === "channeled" ? packet.packet.channel : 1,
         sequence: property === "channeled" ? packet.packet.sequence : undefined,
       });

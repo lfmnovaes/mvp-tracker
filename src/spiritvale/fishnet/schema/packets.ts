@@ -41,6 +41,8 @@ export interface FishNetDecodeOptions {
   channel?: number;
   /** Optional reliable transport sequence, used to ignore duplicate split fragments. */
   sequence?: number;
+  /** Original capture time for bounded pre-spawn SyncType recovery. */
+  capturedAt?: number;
 }
 
 export interface FishNetRpcLinkRegistration {
@@ -66,6 +68,8 @@ export interface FishNetSpawnSyncEntry extends FishNetSyncEntry {
 }
 
 export interface DecodedFishNetPacket {
+  /** Set only when a pre-spawn update is retried after its object is identified. */
+  deferredCapturedAt?: number;
   tick: number;
   packetId: number;
   packetName: FishNetPacketName;

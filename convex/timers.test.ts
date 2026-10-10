@@ -7,17 +7,17 @@ import { EXPIRE_AFTER, MINUTE } from "../src/domain/time";
 import { BOSSES, REGIONS } from "../src/domain/catalog";
 const modules = import.meta.glob(["./**/*.ts", "./**/*.js", "!./**/*.test.ts"]);
 const now = Date.UTC(2026, 8, 11, 18);
-const access = { protocol: 4 };
+const access = { protocol: 5 };
 const slot = { mobId: "NightmarePaladinBoss", region: "sa", channel: 2 };
 const evidence = (id = "evidence", patch = {}) => ({ ...slot, observationId: id, diedAt: now - 70 * MINUTE, gatheredAt: now - MINUTE, source: "manual" as const, timePrecision: "second" as const, killedBy: "Killer", observedByCharacter: "Observer", ...patch });
 
 test("a fresh post-reset grave observation is accepted even when its kill preceded Reset", async () => {
   const t = convexTest(schema, modules);
-  const dataset = await t.mutation(api.timers.ensureInitialized, { protocol: 4 });
-  const reset = await t.mutation(api.timers.reset, { protocol: 4, datasetId: dataset.datasetId, generation: dataset.generation, requestId: "fresh-reset" });
+  const dataset = await t.mutation(api.timers.ensureInitialized, { protocol: 5 });
+  const reset = await t.mutation(api.timers.reset, { protocol: 5, datasetId: dataset.datasetId, generation: dataset.generation, requestId: "fresh-reset" });
   vi.setSystemTime(now + 1000);
   const fresh = evidence("revisited-after-reset", { source: "gravestone", timePrecision: "millisecond", gatheredAt: now + 1000 });
-  const response = await t.mutation(api.timers.sync, { protocol: 4, datasetId: reset.datasetId, generation: reset.generation, sinceRevision: null, requestId: "fresh-revisit", observations: [fresh] });
+  const response = await t.mutation(api.timers.sync, { protocol: 5, datasetId: reset.datasetId, generation: reset.generation, sinceRevision: null, requestId: "fresh-revisit", observations: [fresh] });
   expect(response.slots[0]?.observation).toMatchObject(fresh);
 });
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); });
@@ -81,9 +81,9 @@ test("scheduled cleanup removes expired payloads without clients and ignores sup
 });
 
 test("42-slot and full-catalog syncs have bounded payloads; unchanged polls return no rows", async () => {
-  for (const count of [42, 594]) {
+  for (const count of [42, 594, 792]) {
     const { t, args } = await setup();
-    const rows = BOSSES.flatMap(b => REGIONS.flatMap(region => [1, 2, 3].map(channel => evidence(`id-${b.id}-${region}-${channel}`.replace(/[^A-Za-z0-9_-]/g, "_"), { mobId: b.id, region, channel })))).slice(0, count);
+    const rows = BOSSES.flatMap(b => REGIONS.flatMap(region => [1, 2, 3, ...(count === 792 ? [10] : [])].map(channel => evidence(`id-${b.id}-${region}-${channel}`.replace(/[^A-Za-z0-9_-]/g, "_"), { mobId: b.id, region, channel, ...(channel > 3 ? { pvp: true } : {}) })))).slice(0, count);
     const first = await t.mutation(api.timers.sync, { ...args, observations: rows }); expect(first.slots).toHaveLength(count);
     const unchanged = await t.mutation(api.timers.sync, { ...args, observations: [], sinceRevision: first.dataset.revision });
     expect(unchanged.slots).toEqual([]); expect(unchanged.dataset.revision).toBe(first.dataset.revision);
@@ -180,4 +180,23 @@ test("reset rejects old generations, blocks old death reports and retry cannot e
   for (let i = 0; i < 35; i++) { const r = await t.mutation(api.timers.reset, { ...resetArgs, generation, requestId: `reset-${i + 2}` }); generation = r.generation; }
   expect(await t.run(ctx => ctx.db.query("resetReceipts").collect())).toHaveLength(32);
   await expect(t.mutation(api.timers.reset, resetArgs)).rejects.toThrow();
+});
+
+test("PvP evidence round-trips, remains fresh on repeat sync, and retains its channel through expiry", async () => {
+  const { t, args, d } = await setup();
+  const pvp = evidence("pvp", { channel: 10, pvp: true, source: "gravestone", position: { x: 1, y: 2, z: 3 } });
+  const first = await t.mutation(api.timers.sync, { ...args, observations: [evidence(), pvp] });
+  expect(first.slots).toHaveLength(2);
+  const row = first.slots.find(s => s.channel === 10)!;
+  expect(row).toMatchObject({ pvp: true, observation: { ...pvp, submission: { submittedByCharacter: "Sender", serverAcceptedAt: now } } });
+  const repeat = await t.mutation(api.timers.sync, { ...args, observations: [pvp], sinceRevision: first.dataset.revision });
+  expect(repeat.dataset.revision).toBe(first.dataset.revision); expect(repeat.slots).toEqual([]);
+  const stored = await t.run(ctx => ctx.db.query("bossTimers").collect()); expect(stored.find(s => s.channel === 10)?.observation).toMatchObject(pvp);
+  await expect(t.mutation(api.timers.sync, { ...args, observations: [evidence("not-pvp", { channel: 5 })] })).rejects.toThrow();
+  await expect(t.query(api.timers.snapshot, { protocol: 4, datasetId: d.datasetId, generation: d.generation })).rejects.toThrow();
+  vi.setSystemTime(now + EXPIRE_AFTER);
+  await t.mutation(api.timers.sync, { ...args, observations: [] });
+  const expired = await t.query(api.timers.snapshot, { ...access, datasetId: d.datasetId, generation: d.generation });
+  expect(expired.slots.find(s => s.channel === 10)).toMatchObject({ pvp: true, outdated: true });
+  expect(expired.slots.find(s => s.channel === 10)?.observation).toBeUndefined();
 });

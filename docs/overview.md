@@ -1,9 +1,11 @@
 # Project overview
 
-MVP Tracker is a portable Windows 11 x64 application focused on Spirit Vale boss timers. It collects all 33 supported bosses across six server regions and channels 1–3, including records hidden by display preferences. The default view selects the seven Dark Fortress bosses in SA and NA. Robot Dragon and living-boss detection are excluded.
+MVP Tracker is a portable Windows 11 x64 application focused on Spirit Vale boss timers. It collects all 33 supported bosses across six server regions, channels 1–3 and server-identified PvP channels, including records hidden by display preferences. The default view selects the seven Dark Fortress bosses in SA and NA. Robot Dragon and living-boss detection are excluded.
 
 ## Behavior
 
+- Extra channels are admitted only when ChannelList_T identifies the current channel as the final PvP channel. Filters add only collected visible PvP IDs.
+- Unidentified inbound SyncTypes wait up to two seconds for a matching gravestone spawn (128 entries, 4 KiB each); authentication, map traversal, despawn or disconnect discard them.
 - Tracking settings control the table, filters, manual entry and clipboard selections. Location filters show map minimum levels in parentheses and sort highest first.
 - Kill evidence gives a 60–90 minute spawn window and expires after 150 minutes. Silence or an object despawn is not evidence of a new kill. Newer gathered evidence wins during merge.
 - Manual edits set the kill time and gather time at confirmation. Names are optional. UTC timestamps are displayed in America/Sao_Paulo; 24-hour time is the default.
@@ -18,7 +20,7 @@ Preact → validated IPC → Bun backend. Neutralino hosts the window; a C# help
 
 Portable state lives beside the executable: `data/settings.json`, `sharing.json`, `timers.json` and `window.json`. Atomic saves protect updates; read-only storage errors are reported. Logs live in `logs/`. See [diagnostics](diagnostics.md).
 
-Observations retain boss/region/channel, unique evidence ID, kill and gather timestamps, provenance, precision, optional position, killer, observer and instance/edit references. Accepted submissions retain forwarding character and server receipt time. Expired evidence is discarded; empty outdated slot labels can be removed with **Delete outdated**.
+Observations retain boss/region/channel, optional PvP marker, unique evidence ID, kill and gather timestamps, provenance, precision, optional position, killer, observer and instance/edit references. Accepted submissions retain forwarding character and server receipt time. Expired evidence is discarded; empty outdated slot labels can be removed with **Delete outdated**.
 
 Convex tables:
 
@@ -28,7 +30,7 @@ Convex tables:
 | trackerMeta | Dataset/reset generation, change cursor, deletion cursor and scheduled-expiry state |
 | resetReceipts | Last 32 reset results; retries cannot erase newer observations |
 
-Identical syncs do not advance revisions. Actual evidence changes, expiry, resets and deletions do. `expiresAt` is kill time +150 minutes and drives scheduled cleanup; it is absent after evidence expires. Full snapshots recover after deletions/reset; normal polls use deltas. Storage schema 2 reads schema 1; sharing protocol 4 requires matching clients.
+Identical syncs do not advance revisions. Actual evidence changes, expiry, resets and deletions do. `expiresAt` is kill time +150 minutes and drives scheduled cleanup; it is absent after evidence expires. Full snapshots recover after deletions/reset; normal polls use deltas. Storage schema 2 reads schema 1; sharing protocol 5 requires matching clients.
 
 ## Convex setup
 
@@ -42,7 +44,7 @@ npx convex dev --configure --dev-deployment cloud --once
 
 Choose the intended cloud development deployment. Keep the CLI-generated `.env.local`: `CONVEX_DEPLOYMENT` selects it, and `CONVEX_URL` provides the URL to copy. `CONVEX_SITE_URL` is unused. [The empty sample](../.env.local.sample) is a reference, not a replacement for an existing configuration.
 
-After backend changes, the owner runs `npx convex dev --once`. Ordinary app launches require neither command. Upgrades from before 0.1.9.2 require deployment and matching clients; 0.1.9.7 needs no further deployment after that upgrade.
+After backend changes, the owner runs `npx convex dev --once`. Ordinary app launches require neither command. Upgrades from before 0.1.9.2 require deployment and matching clients; 0.1.9.8 also requires deployment for PvP support; existing timers are preserved.
 
 **Reset database** confirms before clearing shared tracker data; schema/function deployment still requires the CLI. Automatic sync starts stopped each launch, with intervals of 5/10/20/30 seconds or 1/2 minutes. Manual sync and interval changes remain available; overlapping requests coalesce and failures back off.
 

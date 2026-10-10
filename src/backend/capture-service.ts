@@ -42,7 +42,7 @@ export class CaptureService {
       detail: this.state.state === "running" && this.state.game === "active" && (!context.region || !context.channel)
         ? `${this.state.detail} Waiting for server/channel context; change channel and revisit the gravestone.` : this.state.detail,
       experiments: this.packets.experiments(),
-      region: context.region, channel: context.channel, character: context.character, cachedCharacter: context.cachedCharacter, unresolved: context.unresolved,
+      region: context.region, channel: context.channel, pvp: context.pvp, character: context.character, cachedCharacter: context.cachedCharacter, unresolved: context.unresolved,
       identity: context.character ? { name: context.character, source: "live" }
         : context.cachedCharacter ? { name: context.cachedCharacter, source: "cached" }
         : this.settings.manualCharacter ? { name: this.settings.manualCharacter, source: "manual" } : { source: "unavailable" } };

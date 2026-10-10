@@ -1,7 +1,8 @@
+import { availableChannels } from "../domain/channels";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Snapshot } from "../shared/protocol";
 import { manualBosses, manualDraft } from "../domain/manual";
-import { bossById, CHANNELS } from "../domain/catalog";
+import { bossById } from "../domain/catalog";
 import { slotKey, type ManualEntry, type TimerSlot } from "../domain/timers";
 import { dateInZone, ELIGIBLE_AFTER, EXPIRE_AFTER, formatTimestamp, parseManualTime, SPAWN_AFTER } from "../domain/time";
 import { call } from "./bridge";
@@ -34,9 +35,9 @@ export function ManualDialog({ snapshot, edit, onClose, onSaved }: { snapshot: S
       <div class="manual-content">
         {!entry ? <p>Select at least one boss and region in Settings before adding a timer.</p> : <>
           <fieldset disabled={saving}><div class="manual-grid">
-            <label class="field wide">Boss<select autoFocus={!edit} disabled={!!edit} value={entry.mobId} onChange={e => update({ mobId: e.currentTarget.value as ManualEntry["mobId"] })}>{edit ? <option value={entry.mobId}>{bossById(entry.mobId)?.name}</option> : bosses.map(b => <option key={b.id} value={b.id}>{b.name} · Lv {b.level}</option>)}</select></label>
-            <label class="field">Region<select disabled={!!edit} value={entry.region} onChange={e => update({ region: e.currentTarget.value as ManualEntry["region"] })}>{(edit ? [entry.region] : snapshot.settings.tracking.regions).map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}</select></label>
-            <label class="field">Channel<select disabled={!!edit} value={entry.channel} onChange={e => update({ channel: Number(e.currentTarget.value) as ManualEntry["channel"] })}>{CHANNELS.map(ch => <option key={ch} value={ch}>{ch}</option>)}</select></label>
+            <label class="field wide">Boss<select autoFocus={!edit} disabled={!!edit} value={entry.mobId} onChange={e => update({ mobId: e.currentTarget.value as ManualEntry["mobId"], channel: 1, pvp: undefined })}>{edit ? <option value={entry.mobId}>{bossById(entry.mobId)?.name}</option> : bosses.map(b => <option key={b.id} value={b.id}>{b.name} · Lv {b.level}</option>)}</select></label>
+            <label class="field">Region<select disabled={!!edit} value={entry.region} onChange={e => update({ region: e.currentTarget.value as ManualEntry["region"], channel: 1, pvp: undefined })}>{(edit ? [entry.region] : snapshot.settings.tracking.regions).map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}</select></label>
+            <label class="field">Channel<select disabled={!!edit} value={String(entry.channel)} onChange={e => update({ channel: Number(e.currentTarget.value), pvp: Number(e.currentTarget.value) > 3 ? true : undefined })}>{(edit ? [entry.channel] : availableChannels(snapshot.timers, snapshot.settings.tracking, entry.region, bossById(entry.mobId)?.map)).map(ch => <option key={ch} value={String(ch)}>{ch}{ch > 3 ? " · PvP" : ""}</option>)}</select></label>
             <label class="field wide">Kill date<input autoFocus={!!edit} type="date" required value={entry.date} min="2000-01-01" max={dateInZone(now)} onInput={e => update({ date: e.currentTarget.value })}/><span class="date-shortcuts"><button type="button" onClick={() => update({ date: dateInZone(Date.now()) })}>Today</button><button type="button" onClick={() => update({ date: dateInZone(Date.now() - 86400000) })}>Yesterday</button></span></label>
             <label class={`field ${entry.clock24 ? "wide" : ""}`}>Kill time ({entry.clock24 ? "24-hour" : "12-hour"})<input type="text" inputMode="text" required maxLength={8} placeholder={entry.clock24 ? "21:35 or 21:35:22" : "9:35 or 9:35:22"} value={entry.time} onInput={e => update({ time: e.currentTarget.value })} aria-describedby="kill-preview"/></label>
             {!entry.clock24 && <label class="field">AM / PM<select value={entry.meridiem} onChange={e => update({ meridiem: e.currentTarget.value as "AM" | "PM" })}><option>AM</option><option>PM</option></select></label>}

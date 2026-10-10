@@ -1,10 +1,10 @@
-import { bossById, isSelected, normalizeRegion, type BossId, type Channel, type Region, type Selection } from "./catalog";
+import { MAX_CHANNEL, bossById, isSelected, normalizeRegion, type BossId, type Channel, type Region, type Selection } from "./catalog";
 import { CLOCK_SKEW, ELIGIBLE_AFTER, EXPIRE_AFTER, SPAWN_AFTER, parseManualTime, type ManualTime } from "./time";
 export const TIMER_SCHEMA = 2;
 export interface WorldPosition { x: number; y: number; z: number }
-export const MAX_SLOTS = 33 * 6 * 3;
+export const MAX_SLOTS = 33 * 6 * MAX_CHANNEL;
 export const MAX_BATCH = MAX_SLOTS * 4;
-export interface Slot { mobId: BossId; region: Region; channel: Channel }
+export interface Slot { mobId: BossId; region: Region; channel: Channel; pvp?: true }
 export interface Observation extends Slot {
   observationId: string;
   diedAt: number;
@@ -31,8 +31,8 @@ export function parseSlot(raw: unknown): Slot {
   if (!raw || typeof raw !== "object") throw new Error("Invalid timer slot.");
   const s = raw as Slot;
   const boss = bossById(s.mobId), region = normalizeRegion(s.region);
-  if (!boss || !region || ![1, 2, 3].includes(s.channel) || !Number.isInteger(s.channel)) throw new Error("Invalid boss, region or channel.");
-  return { mobId: boss.id, region, channel: s.channel };
+  if (!boss || !region || !Number.isInteger(s.channel) || s.channel < 1 || s.channel > MAX_CHANNEL || s.pvp !== undefined && s.pvp !== true || s.channel > 3 && s.pvp !== true) throw new Error("Invalid boss, region or channel.");
+  return { mobId: boss.id, region, channel: s.channel, ...(s.pvp ? { pvp: true } : {}) };
 }
 function boundedText(value: unknown, limit: number): string | undefined {
   if (value === undefined) return undefined;
@@ -64,14 +64,14 @@ export function parseObservation(raw: unknown, now: number): Observation {
 // Transport attribution is not part of an observation's evidence identity.
 export function evidenceContent(o: Observation): string {
   return JSON.stringify([o.mobId, o.region, o.channel, o.observationId, o.diedAt, o.gatheredAt, o.source, o.timePrecision,
-    o.killedBy, o.observedByCharacter, o.instanceId, o.replacesObservationId, o.position]);
+    o.killedBy, o.observedByCharacter, o.instanceId, o.replacesObservationId, o.position, ...(o.pvp ? [true] : [])]);
 }
 export function timerStatus(slot: TimerSlot, now: number): TimerStatus {
   if (!slot.observation) return slot.outdated ? "outdated" : "empty";
   const age = now - slot.observation.diedAt!;
   return age >= EXPIRE_AFTER ? "outdated" : age >= SPAWN_AFTER ? "spawned" : age >= ELIGIBLE_AFTER ? "window" : "waiting";
 }
-export function emptySlot(slot: Slot, outdated = false): TimerSlot { return { mobId: slot.mobId, region: slot.region, channel: slot.channel, outdated }; }
+export function emptySlot(slot: Slot, outdated = false): TimerSlot { return { mobId: slot.mobId, region: slot.region, channel: slot.channel, ...(slot.pvp ? { pvp: true as const } : {}), outdated }; }
 export function expireSlots(slots: readonly TimerSlot[], now: number): TimerSlot[] {
   return slots.map(s => s.observation && now >= observationExpiresAt(s.observation) ? emptySlot(s, true) : s);
 }

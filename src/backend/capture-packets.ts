@@ -1,13 +1,14 @@
 import { decodeBossGravestone, type BossGravestone, type CapturedFishNetPacket } from "../spiritvale";
 import { CharacterIdentity } from "../spiritvale/identity";
-import { regionFromInstance, type Region } from "../domain/catalog";
+import { MAX_CHANNEL, regionFromInstance, type Channel, type Region } from "../domain/catalog";
 import { parseObservation, type Observation, type WorldPosition } from "../domain/timers";
 import type { LogContext } from "./log-context";
 import { CapturePositions } from "./capture-positions";
 
 export interface CaptureContext {
   region?: Region;
-  channel?: 1 | 2 | 3;
+  channel?: Channel;
+  pvp?: true;
   instanceId?: string;
   character?: string;
   cachedCharacter?: string;
@@ -105,7 +106,7 @@ export class CapturePackets {
       return;
     }
     if (packet.rpcName === "QuitCharacter_Rpc") {
-      this.context.region = undefined; this.context.channel = undefined; this.context.instanceId = undefined;
+      this.context.region = undefined; this.context.channel = undefined; this.context.pvp = undefined; this.context.instanceId = undefined;
       this.pending.clear(); this.awaitingContext = true;
       this.connectionChanged(packet.connectionId, "closed");
       return;
@@ -118,12 +119,17 @@ export class CapturePackets {
     if (packet.rpcName === "ChannelList_T" && transport.direction === "inbound") {
       const index = packet.decodedFields?.find(f => f.name === "currentIndex")?.value;
       const instance = packet.decodedFields?.find(f => f.name === "instanceId")?.value;
-      const previousInstance = this.context.instanceId, previousChannel = this.context.channel;
-      this.context.channel = typeof index === "number" && Number.isInteger(index) && index >= 0 && index <= 2
-        ? (index + 1) as 1 | 2 | 3 : undefined;
+      const previousInstance = this.context.instanceId, previousChannel = this.context.channel, previousPvp = this.context.pvp;
+      const pvpIndex = packet.decodedFields?.find(f => f.name === "pvpIndex")?.value;
+      const counts = packet.decodedFields?.find(f => f.name === "playerCounts")?.value;
+      const count = Array.isArray(counts) ? counts.length : 0;
+      const pvp = Number.isInteger(pvpIndex) && pvpIndex === index && count > 0 && count <= MAX_CHANNEL && index === count - 1;
+      this.context.channel = typeof index === "number" && Number.isInteger(index) && index >= 0 && index < MAX_CHANNEL && (index <= 2 || pvp)
+        ? index + 1 : undefined;
+      this.context.pvp = this.context.channel && pvp ? true : undefined;
       this.context.instanceId = typeof instance === "string" && instance.length <= 160 ? instance : undefined;
       this.context.region = this.context.instanceId ? regionFromInstance(this.context.instanceId) : undefined;
-      if (previousInstance !== undefined && (previousInstance !== this.context.instanceId || previousChannel !== this.context.channel)) { this.entities.clear(); this.pending.clear(); }
+      if (previousInstance !== undefined && (previousInstance !== this.context.instanceId || previousChannel !== this.context.channel || previousPvp !== this.context.pvp)) { this.entities.clear(); this.pending.clear(); }
       this.awaitingContext = false;
       this.snapshot();
       for (const entry of this.pending.values()) this.record(entry, now);
@@ -147,7 +153,7 @@ export class CapturePackets {
       }
     }
     if (transport.direction !== "inbound") return;
-    const gatheredAt = transport.capturedAt.getTime();
+    const gatheredAt = packet.deferredCapturedAt ?? transport.capturedAt.getTime();
     if (!Number.isSafeInteger(gatheredAt) || gatheredAt > now + 30000 || now - gatheredAt > 30000) { this.invalid("timestamp-invalid"); return; }
     try { this.entities.consume(packet, gatheredAt, this.features.coordinates); }
     catch { this.entities.clear(); this.invalid("experimental-rejected"); }
@@ -166,7 +172,7 @@ export class CapturePackets {
     try {
       const observation = parseObservation({
         observationId: crypto.randomUUID(), mobId: grave.mobId,
-        region: this.context.region, channel: this.context.channel,
+        region: this.context.region, channel: this.context.channel, pvp: this.context.pvp,
         instanceId: this.context.instanceId, diedAt: Math.round(grave.diedAtMs), killedBy: grave.killedBy || undefined,
         gatheredAt, source: "gravestone", timePrecision: "millisecond", position, observedByCharacter,
       }, now);

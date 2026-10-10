@@ -1,3 +1,4 @@
+import { ChannelFilter } from "../src/ui/channel-filter";
 import { LocationFilter } from "../src/ui/location-filter";
 import { selectedLocations, bossPreset } from "../src/domain/catalog";
 import { MAP_LEVELS } from "../src/domain/map-levels";
@@ -99,4 +100,15 @@ test("location labels show every map level while selected values remain raw map 
   expect(changes).toEqual(["Dark Manor"]);
   await act(() => { select.value = ""; select.dispatchEvent(new browser.Event("change", { bubbles: true }) as unknown as Event); });
   expect(changes.at(-1)).toBe("");
+});
+
+test("rendered channel filter offers observed PvP IDs with no intermediate channels", async () => {
+  host = document.createElement("div"); document.body.append(host); const changes: (number | "")[] = [];
+  await act(() => render(<ChannelFilter channels={[1, 2, 3, 5, 10]} value={5} onChange={value => changes.push(value)}/>, host));
+  const select = host.querySelector("select")!;
+  expect([...select.options].map(o => o.value)).toEqual(["", "1", "2", "3", "5", "10"]);
+  expect(select.value).toBe("5"); expect(select.options[4]!.textContent).toBe("Ch 5 · PvP");
+  await act(() => { select.value = "10"; select.dispatchEvent(new browser.Event("change", { bubbles: true }) as unknown as Event); }); expect(changes).toEqual([10]);
+  await act(() => render(<ChannelFilter channels={[1, 2, 3]} value="" onChange={value => changes.push(value)}/>, host));
+  expect(select.value).toBe(""); expect(select.options).toHaveLength(4);
 });

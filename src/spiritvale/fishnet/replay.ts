@@ -35,7 +35,8 @@ export class FishNetTransportReplay {
     const destination = `${transport.destinationIP}:${transport.destinationPort}`;
     const endpoints = [source, destination].sort();
     const connectionBase = `${endpoints[0]}<->${endpoints[1]}`;
-    const direction = source === endpoints[0] ? "a-to-b" : "b-to-a";
+    const direction = record.data.direction === "inbound" || record.data.direction === "outbound"
+      ? record.data.direction : source === endpoints[0] ? "a-to-b" : "b-to-a";
     const parsedAtMs = Date.parse(record.recordedAt);
     const observedAtMs = Number.isFinite(parsedAtMs) ? parsedAtMs : undefined;
 
@@ -52,9 +53,10 @@ export class FishNetTransportReplay {
           reliable: packet.property === "channeled",
           connectionId,
           direction,
+          capturedAt: observedAtMs,
           channel: packet.property === "channeled" ? packet.channel : 1,
           sequence: packet.property === "channeled" ? packet.sequence : undefined,
-        })) consume(fishNetPacket, observedAtMs);
+        })) consume(fishNetPacket, fishNetPacket.deferredCapturedAt ?? observedAtMs);
       }
     } catch {
       this.decodeWarnings += 1;

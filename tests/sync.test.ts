@@ -26,7 +26,7 @@ class Transport implements SyncTransport {
   hold?: Promise<void>; error?: Error; resets: string[] = []; lostReset = false; receipts = new Map<string, Dataset>();
   constructor(public clock: Clock) {}
   credentials = (): Connection => ({ ...this.config }); close() {}
-  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 4, schema: 2, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
+  async discover(): Promise<Discovery> { return { app: "mvp-tracker", protocol: 5, schema: 2, catalog: 1, dataset: { ...this.dataset }, serverTime: this.clock.now() }; }
   async sync(input: SyncInput): Promise<SyncResult> {
     this.calls.push(structuredClone(input)); await this.hold;
     if (this.error) throw this.error;

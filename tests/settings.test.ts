@@ -62,7 +62,8 @@ test("logs rotate at their byte cap, retain five files and prune old logs", asyn
   }
   log.write("started");
   // Windows may defer an unlink while a directory/antivirus handle remains open.
-  const deadline = Date.now() + 500;
-  while (readdirSync(root).some(name => /^mvp-tracker(?:\.\d+)?\.log\.tmp$/i.test(name)) && Date.now() < deadline) await Bun.sleep(10);
+  await Bun.sleep(20);
+  const deadline = Date.now() + 1000;
+  while (readdirSync(root).some(name => name !== "mvp-tracker.log") && Date.now() < deadline) await Bun.sleep(10);
   expect(readdirSync(root)).toEqual(["mvp-tracker.log"]);
 });

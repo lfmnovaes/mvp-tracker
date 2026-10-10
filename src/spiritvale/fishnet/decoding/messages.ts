@@ -48,6 +48,7 @@ export interface ConnectionState {
   components: Map<string, string>;
   staleLinks: Map<number, RpcLinkRegistrationState>;
   staleComponents: Map<string, string>;
+  pendingSync: Map<string, { objectId: number; raw: Buffer; tick: number; at: number }>;
 }
 
 export interface ParsedMessage {

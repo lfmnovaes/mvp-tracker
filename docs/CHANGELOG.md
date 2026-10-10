@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.9.8
+
+- Track server-identified PvP boss channels and add collected channels dynamically to filters, manual entry and exports.
+- Recover witnessed-kill updates that arrive before their gravestone spawn, preserving the original gathered time.
+- Share PvP evidence without resetting existing timers; database owners must run `npx convex dev --once` and group members must update Tracker.
+- Updated Preact, convex-test and happy-dom; added capture, persistence, sharing and UI regressions.
+
 ## 0.1.9.7
 
 - Fixed gravestone tracking for Spirit Vale public build 25832491 by updating the channel packet and PlayerSave layouts.

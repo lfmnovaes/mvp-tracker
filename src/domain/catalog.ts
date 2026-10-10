@@ -57,7 +57,9 @@ export function bossPreset(preset: "all" | "endgame" | "none"): BossId[] {
 export const REGIONS = ["sa", "na", "oce", "jp", "eu", "sea"] as const;
 export type Region = typeof REGIONS[number];
 export const CHANNELS = [1, 2, 3] as const;
-export type Channel = typeof CHANNELS[number];
+export type Channel = number;
+// Resource bound, not a claim that every channel can spawn bosses. Extras require PvP evidence.
+export const MAX_CHANNEL = 64;
 const aliases: Record<string, Region> = { sa: "sa", nova: "sa", na: "na", sun: "na", oce: "oce", aurora: "oce", jp: "jp", eu: "eu", star: "eu", sea: "sea" };
 export function normalizeRegion(value: unknown): Region | undefined {
   if (typeof value !== "string") return undefined;

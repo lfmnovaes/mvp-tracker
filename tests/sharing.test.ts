@@ -8,7 +8,7 @@ import { parseRequest } from "../src/shared/protocol";
 import { Logger } from "../src/backend/logger";
 const roots: string[] = [], connections: SharingConnection[] = [];
 const config = { url: "https://test-group-123.convex.cloud" };
-const discovery = (): Discovery => ({ app: "mvp-tracker", protocol: 4, schema: 2, catalog: 1, serverTime: Date.now(), dataset: { datasetId: "dataset", generation: 1, revision: 0, resetAt: 0 } });
+const discovery = (): Discovery => ({ app: "mvp-tracker", protocol: 5, schema: 2, catalog: 1, serverTime: Date.now(), dataset: { datasetId: "dataset", generation: 1, revision: 0, resetAt: 0 } });
 function response(value: unknown) { return new Response(JSON.stringify({ status: "success", value }), { status: 200 }); }
 function make(fetcher?: typeof fetch) {
   const root = mkdtempSync(join(tmpdir(), "mvp-sharing-test-")); roots.push(root);
@@ -16,7 +16,7 @@ function make(fetcher?: typeof fetch) {
 }
 afterEach(() => {
   for (const c of connections.splice(0)) c.close();
-  for (const root of roots.splice(0)) { if (!root.startsWith(join(tmpdir(), "mvp-sharing-test-"))) throw new Error("Unsafe cleanup."); rmSync(root, { recursive: true, force: true }); }
+  for (const root of roots.splice(0)) { if (!root.startsWith(join(tmpdir(), "mvp-sharing-test-"))) throw new Error("Unsafe cleanup."); rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
 });
 test("connection origins validate before transmission; IPC shares the same checks", () => {
   expect(parseConnection({ ...config, url: config.url + "/" })).toEqual(config);
@@ -40,7 +40,7 @@ test("Test uses only the saved origin and a read-only query with redirects disab
   c.configure(config); expect((await c.test()).state).toBe("ready"); expect(requests).toHaveLength(1);
   expect(requests[0]?.url).toBe(config.url + "/api/query"); expect(requests[0]?.init?.redirect).toBe("error");
   const body = JSON.parse(String(requests[0]?.init?.body)); expect(body.path).toBe("timers:testConnection");
-  expect(body.args).toEqual([{ protocol: 4 }]);
+  expect(body.args).toEqual([{ protocol: 5 }]);
 });
 
 test("legacy connection migrates its URL and removes the obsolete key file", () => {
@@ -62,8 +62,9 @@ test("changing the connection cancels an in-flight test and rejects its late res
 test("missing initialization, version, quota, clock and network failures stay distinct and sanitized", async () => {
   const fixtures: [() => Response, string][] = [
     [() => response({ ...discovery(), dataset: null }), "initialize"],
-    [() => response({ ...discovery(), schema: 99 }), "matching"],
-    [() => new Response(JSON.stringify({ status: "error", errorMessage: "ArgumentValidationError: Object is missing the required field secret" }), { status: 560 }), "matching"],
+    [() => response({ ...discovery(), schema: 99 }), "convex dev --once"],
+    [() => response({ ...discovery(), protocol: 4 }), "convex dev --once"],
+    [() => new Response(JSON.stringify({ status: "error", errorMessage: "ArgumentValidationError: Object is missing the required field secret" }), { status: 560 }), "convex dev --once"],
     [() => response({ ...discovery(), serverTime: Date.now() + 60000 }), "clock"],
     [() => new Response("secret response", { status: 429 }), "rate-limiting"],
     [() => new Response("secret response", { status: 503 }), "quota"],
@@ -78,6 +79,6 @@ test("transport diagnostics distinguish service failures and unchanged syncs sta
   const c = new SharingConnection(root, undefined, (async () => failing ? new Response("SECRET", { status: 503 }) : response({ dataset: discovery().dataset, full: false, serverTime: Date.now(), slots: [], acknowledged: [] })) as unknown as typeof fetch, log); connections.push(c); c.configure(config);
   await c.test(); expect(log.recent().find(row => row.event === "sharing-failed")).toMatchObject({ category: "quota", operation: "test", status: 503 });
   failing = false; log.clear();
-  await c.sync({ protocol: 4, datasetId: "dataset", generation: 1, requestId: crypto.randomUUID(), sinceRevision: 0, observations: [] });
+  await c.sync({ protocol: 5, datasetId: "dataset", generation: 1, requestId: crypto.randomUUID(), sinceRevision: 0, observations: [] });
   expect(log.recent()).toEqual([]);
 });

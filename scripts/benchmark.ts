@@ -3,8 +3,8 @@ import { mergeObservations, type Observation } from "../src/domain/timers";
 import { queryTimers } from "../src/domain/query";
 import { exportTimers } from "../src/backend/exchange";
 const now = Date.now();
-for (const selection of [defaultSelection(), { bossIds: BOSSES.map(b => b.id), regions: [...REGIONS] } satisfies Selection]) {
-  const observations: Observation[] = selection.bossIds.flatMap(mobId => selection.regions.flatMap(region => CHANNELS.map(channel => ({ mobId, region, channel, observationId: `${mobId}-${region}-${channel}`.replace(/[^A-Za-z0-9_-]/g, "_"), diedAt: now - 3600000, gatheredAt: now - 60000, source: "manual" as const, timePrecision: "second" as const }))));
+for (const [selection, pvp] of [[defaultSelection(), false], [{ bossIds: BOSSES.map(b => b.id), regions: [...REGIONS] } satisfies Selection, false], [{ bossIds: BOSSES.map(b => b.id), regions: [...REGIONS] } satisfies Selection, true]] as const) {
+  const observations: Observation[] = selection.bossIds.flatMap(mobId => selection.regions.flatMap(region => [...CHANNELS, ...(pvp ? [10] : [])].map(channel => ({ mobId, region, channel, ...(channel > 3 ? { pvp: true as const } : {}), observationId: `${mobId}-${region}-${channel}`.replace(/[^A-Za-z0-9_-]/g, "_"), diedAt: now - 3600000, gatheredAt: now - 60000, source: "manual" as const, timePrecision: "second" as const }))));
   const slots = mergeObservations([], observations, now), timings: number[] = [];
   for (let i = 0; i < 25; i++) {
     const started = performance.now();

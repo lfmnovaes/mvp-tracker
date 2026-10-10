@@ -28,3 +28,5 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .table-toolbar .location-filter{max-width:210px;min-width:145px;text-overflow:ellipsis}
 
 .health-right{display:flex;align-items:center;gap:10px}.health-right button{font-size:11px;padding:2px 7px;color:#f2bf85;background:#34291f;border-color:#68513a}
+
+.table-scroll .pvp-label{display:block;color:#cb9a9e;font-size:9px;line-height:10px}

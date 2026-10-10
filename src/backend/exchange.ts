@@ -1,5 +1,5 @@
 import { gzipSync, gunzipSync } from "node:zlib";
-import { bossById, CATALOG_VERSION, CHANNELS, isSelected, REGIONS, type Selection } from "../domain/catalog";
+import { bossById, CATALOG_VERSION, isSelected, REGIONS, type Selection } from "../domain/catalog";
 import { observationExpiresAt, compareEvidence, expireSlots, MAX_SLOTS, mergeObservations, parseObservation, slotKey, type Observation, type TimerSlot } from "../domain/timers";
 import { CLOCK_SKEW, formatClock, TIME_ZONE } from "../domain/time";
 import { EXCHANGE_LIMIT, type ExportFormat, type ImportSummary } from "../shared/exchange";
@@ -16,7 +16,7 @@ export function exportTimers(slots: readonly TimerSlot[], selection: Selection, 
     const sections: string[] = [];
     for (const region of REGIONS) {
       const lines: string[] = [];
-      for (const channel of CHANNELS) {
+      for (const channel of [...new Set(observations.filter(o => o.region === region).map(o => o.channel))].sort((a, b) => a - b)) {
         const entries = observations.filter(o => o.region === region && o.channel === channel).sort((a, b) => a.diedAt! - b.diedAt! || a.mobId.localeCompare(b.mobId, "en"));
         if (entries.length) lines.push(`Ch${channel}: ${entries.map(o => `${formatClock(o.diedAt!, true)}(${bossById(o.mobId)!.textCode})`).join(" - ")}`);
       }

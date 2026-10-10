@@ -1,4 +1,4 @@
-import type { Region } from "../domain/catalog";
+import type { Region, Channel } from "../domain/catalog";
 export interface CaptureSettings { deviceName: string; manualCharacter: string; coordinates?: boolean }
 export const captureDefaults = (): CaptureSettings => ({ deviceName: "", manualCharacter: "", coordinates: true });
 export function parseCaptureSettings(value: unknown): CaptureSettings {
@@ -17,7 +17,8 @@ export interface CaptureSnapshot {
   lastPacketAt?: number;
   retryAt?: number;
   region?: Region;
-  channel?: 1 | 2 | 3;
+  channel?: Channel;
+  pvp?: true;
   character?: string;
   cachedCharacter?: string;
   identity: { name?: string; source: "live" | "cached" | "manual" | "unavailable" };

@@ -11,3 +11,5 @@ Only grave timers, coordinates and identity feed the app. Historical generated l
 Current public build: **25832491**; GameAssembly SHA-256 `f6842a80628ed034657b2eb083cdba9631609954262b1607477740f493b5850b`. ChannelList_T still uses **38**, with a new trailing packed `pvpIndex`. PlayerSave adds float32 `ArenaPeakRating` at SyncVar index 2. Other prefab/SyncType layouts retain the reviewed baseline. Profiles/evidence for public build 25647861 remain explicitly available for historical analysis. Historical source-manifest fingerprints are explicit test profiles, not game binary hashes or automatic fallbacks.
 
 [Recording and maintenance guide](../../docs/diagnostics.md). Verify future public builds with `scripts/inspect-game-rpcs.py` and add wire-level regressions.
+
+Fresh graves may carry kill info after spawning. The decoder retains unidentified inbound SyncTypes for up to two seconds and retries them only after a confirmed BossGraveStone spawn. The original capture timestamp is retained; no payload-shape inference identifies graves.

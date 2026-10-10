@@ -9,7 +9,7 @@ import { CATALOG_VERSION } from "../domain/catalog";
 import { CLOCK_SKEW } from "../domain/time";
 import { parseConnection, SHARING_PROTOCOL, SHARING_SCHEMA, type Connection, type ConnectionStatus, type Discovery, type SyncInput, type Dataset } from "../shared/sharing";
 const errors: Record<string, string> = {
-  NOT_INITIALIZED: "Database metadata is missing. Save settings or Sync to initialize it.", VERSION: "Install matching MVP Tracker backend functions. Reset will not fix a version mismatch.",
+  NOT_INITIALIZED: "Database metadata is missing. Save settings or Sync to initialize it.", VERSION: "The owner must run npx convex dev --once from the current source, and group members must update MVP Tracker. Reset will not fix a version mismatch.",
   GENERATION: "The dataset changed or was reset. Test the connection again before syncing.", INVALID_BATCH: "The upload contains invalid evidence. Check the system clock and timer data.",
   CONFLICTING_ID: "An observation ID has conflicting evidence.", CHARACTER_REQUIRED: "The supplied character name is invalid. Clear it or enter a valid name.", CAPACITY: "The dataset exceeds the supported capacity.",
 };

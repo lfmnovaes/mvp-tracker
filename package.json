@@ -1,6 +1,6 @@
 {
   "name": "mvp-tracker",
-  "version": "0.1.9.7",
+  "version": "0.1.9.8",
   "private": true,
   "description": "Portable Windows boss tracker for Spirit Vale",
   "author": "Luis Fernando <lfmnovaes@gmail.com>",
@@ -23,16 +23,16 @@
   "dependencies": {
     "@neutralinojs/lib": "6.10.0",
     "convex": "1.46.0",
-    "preact": "11.0.0"
+    "preact": "11.0.1"
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
     "@neutralinojs/neu": "11.8.0",
     "@types/bun": "1.4.2",
-    "convex-test": "0.0.60",
+    "convex-test": "0.0.61",
     "typescript": "7.0.2",
     "vitest": "5.0.3",
     "@types/node": "24.19.1",
-    "happy-dom": "20.14.5"
+    "happy-dom": "20.14.6"
   }
 }

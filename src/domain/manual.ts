@@ -24,7 +24,7 @@ export function manualDraft(selection: Selection, clock24: boolean, now: number,
   if (!edit && (!boss || !region)) return;
   const at = edit?.observation?.diedAt ?? now, p = zonedParts(at);
   const hour = clock24 ? p.hour : p.hour % 12 || 12;
-  return { mobId: edit?.mobId ?? boss!.id, region: edit?.region ?? region!, channel: edit?.channel ?? 1,
+  return { mobId: edit?.mobId ?? boss!.id, region: edit?.region ?? region!, channel: edit?.channel ?? 1, ...(edit?.pvp ? { pvp: true } : {}),
     date: dateInZone(at), time: `${String(hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}${edit?.observation ? `:${String(p.second).padStart(2, "0")}` : ""}`,
     clock24, meridiem: p.hour >= 12 ? "PM" : "AM", killedBy: edit?.observation?.killedBy ?? "" };
 }

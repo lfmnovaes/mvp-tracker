@@ -1,7 +1,7 @@
 import { observationExpiresAt, emptySlot, expireSlots, MAX_SLOTS, mergeObservations, parseObservation, parseSlot, slotKey, type Observation, type TimerSlot } from "./timers";
 import type { Dataset, SyncResult } from "../shared/sharing";
 // The persisted legacy selection field now stores scope. A different value forces one full download on upgrade.
-export const SYNC_SCOPE = "all-supported-v1";
+export const SYNC_SCOPE = "all-supported-v2-pvp";
 export interface SyncCache { connectionId: string; selection: string; dataset: Dataset; known: Record<string, string>; resetRequest?: { id: string; dataset: Dataset } }
 export function parseDataset(raw: Dataset): Dataset {
   if (!raw || typeof raw.datasetId !== "string" || !raw.datasetId || raw.datasetId.length > 160 || ![raw.generation, raw.revision, raw.resetAt].every(n => Number.isSafeInteger(n) && n >= 0) || raw.generation < 1) throw new Error("Sharing: invalid dataset metadata.");
